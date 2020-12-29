@@ -53,6 +53,9 @@ optim_para=dict(
     lr_gamma= 0.96
 )
 
+# log path
+log_path = "CrowdPose_FC/"
+
 #init params
 sigmas = np.array(
     [.79, .79, .72, .72, .62, .62, 1.07, 1.07, .87, .87, .89, .89, .79, .79]) / 10.0

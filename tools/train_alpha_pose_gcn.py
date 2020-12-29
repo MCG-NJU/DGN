@@ -20,7 +20,7 @@ from engineer.models.builder import build_generator,build_backbone
 from engineer.core.train import  train_epochs
 from utils import group_weight
 
-
+from tensorboardX import SummaryWriter
 
 
 
@@ -30,6 +30,11 @@ if __name__ == "__main__":
     assert args.config is not None,"you must give your model config"
     cfg = Config.fromfile(args.config)
 
+    # add tensorboard support
+    # log_path = os.path.join('../log', cfg.log_path)
+    # writer_dict = {
+    #     'writer': SummaryWriter(log_path),
+    # }
 
     # train_data_set = TrainSingerDataset(cfg.data.json_file, transfer=transfer,img_dir = cfg.data.img_dir,black_list=cfg.data.black_list)
     train_data_set = build_dataset(cfg.data.train)
