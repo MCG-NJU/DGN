@@ -1,4 +1,5 @@
 import numpy as np
+GPUS = (0,1,2,3)
 model = dict(
     type='SemGCN_FC',
     adj = ([0,1],[0,2],[2,4],[1,3],[3,5],[0,6],[1,7],[6,7],[6,8],[8,10],[7,9],[9,11]),
@@ -13,7 +14,8 @@ pose_generator=dict(
     outputResH = 80,
     outputResW = 64,
     inputResW = 256,
-    inputResH = 320
+    inputResH = 320,
+    GPUS = GPUS
 )
 dataset_type = 'CrowdPose'
 train_pipeline = [
@@ -48,7 +50,7 @@ data = dict(
 checkpoints = "./checkpoints"
 # optimizer
 optim_para=dict(
-    optimizer = dict(type='Adam',lr=0.0005),
+    optimizer = dict(type='Adam',lr=0.002),
     lr_decay=2,
     lr_gamma= 0.96
 )
@@ -70,7 +72,7 @@ lr_stone = [15,20]
 
 #solver
 lr_policy="cosine"
-lr_warm_up = 1e-5
+lr_warm_up = 4e-5
 warm_epoch=1
 LR=1e-3
 nEpochs=25

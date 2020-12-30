@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
     # train_data_set = TrainSingerDataset(cfg.data.json_file, transfer=transfer,img_dir = cfg.data.img_dir,black_list=cfg.data.black_list)
     train_data_set = build_dataset(cfg.data.train)
-    train_loader = DataLoader(train_data_set,batch_size=opt.trainBatch,shuffle=True,num_workers=4,collate_fn=train_loader_collate_fn)
+    train_loader = DataLoader(train_data_set,batch_size=opt.trainBatch*len(cfg.GPUS),shuffle=True,num_workers=4,collate_fn=train_loader_collate_fn)
 
 
     test_data_set = build_dataset(cfg.data.test)
@@ -53,19 +53,21 @@ if __name__ == "__main__":
         pose_generator =None
     else:
         pose_generator = build_generator(cfg.pose_generator)
+        # pose_generator = torch.nn.DataParallel(pose_generator, device_ids=cfg.GPUS)
     device = torch.device("cuda")
     #gcn model maker
 
     model_pos = build_backbone(cfg.model).to(device).to(device)
+    model_pos = torch.nn.DataParallel(model_pos, device_ids=cfg.GPUS)
     model_pos.train()
 
     #optim_machine
     param_list = []
-    for module in model_pos.gcn_head:
+    for module in model_pos.module.gcn_head:
         params_list = group_weight.group_weight(param_list,module,args.LR)
-    for module in model_pos.heat_map_head:
+    for module in model_pos.module.heat_map_head:
         params_list = group_weight.group_weight(param_list,module,1e-3)
-    for module in model_pos.generator_map:
+    for module in model_pos.module.generator_map:
         params_list = group_weight.group_weight(param_list,module,1e-3)
 
     criterion = nn.L1Loss(size_average=True,reduce=True).to(device)
@@ -75,7 +77,7 @@ if __name__ == "__main__":
     cfg.nEpochs = args.nEpochs
 
     # Init data writer
-
+    
     train_epochs(model_pos, optimizer, cfg, args, train_loader, pose_generator, criterion,test_loader,cfg.pred_json)
 
 

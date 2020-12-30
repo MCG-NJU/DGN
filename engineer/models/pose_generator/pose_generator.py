@@ -16,12 +16,13 @@ except ImportError:
 
 
 class Pose_Generator():
-    def __init__(self,model,outputResH,outputResW,inputResW,inputResH,device ="cuda"):
+    def __init__(self,model,outputResH,outputResW,inputResW,inputResH,GPUS,device ="cuda"):
         self.outputResH=outputResH
         self.outputResW=outputResW
         self.inputResW=inputResW
         self.inputResH=inputResH
         self.model = self._build_generator(model)
+        self.model = torch.nn.DataParallel(self.model, device_ids=GPUS)
         self.model.eval()
         if device =="cuda":
             self.model.cuda()
