@@ -31,10 +31,15 @@ if __name__ == "__main__":
     cfg = Config.fromfile(args.config)
 
     # add tensorboard support
-    # log_path = os.path.join('../log', cfg.log_path)
-    # writer_dict = {
-    #     'writer': SummaryWriter(log_path),
-    # }
+    log_path = os.path.join('log', cfg.log_path)
+    if not os.path.exists(log_path):
+        os.mkdir(log_path)
+
+    writer_dict = {
+        'writer': SummaryWriter(logdir=log_path),
+        'train_step': 0,
+        'valid_step': 0
+    }
 
     # train_data_set = TrainSingerDataset(cfg.data.json_file, transfer=transfer,img_dir = cfg.data.img_dir,black_list=cfg.data.black_list)
     train_data_set = build_dataset(cfg.data.train)
@@ -44,7 +49,7 @@ if __name__ == "__main__":
     test_data_set = build_dataset(cfg.data.test)
     test_loader = DataLoader(test_data_set,batch_size=opt.validBatch,shuffle=False,num_workers=4,collate_fn=test_loader_collate_fn)
 
-    cfg.checkpoints = os.path.join(cfg.checkpoints,cfg.name)
+    cfg.checkpoints = os.path.join(cfg.checkpoints,cfg.log_path)
     if not os.path.exists(cfg.checkpoints):
         os.mkdir(cfg.checkpoints)
 
@@ -64,20 +69,19 @@ if __name__ == "__main__":
     #optim_machine
     param_list = []
     for module in model_pos.module.gcn_head:
-        params_list = group_weight.group_weight(param_list,module,args.LR)
+        params_list = group_weight.group_weight(param_list,module,cfg.LR)
     for module in model_pos.module.heat_map_head:
-        params_list = group_weight.group_weight(param_list,module,1e-3)
+        params_list = group_weight.group_weight(param_list,module,cfg.LR)
     for module in model_pos.module.generator_map:
-        params_list = group_weight.group_weight(param_list,module,1e-3)
+        params_list = group_weight.group_weight(param_list,module,cfg.LR)
 
     criterion = nn.L1Loss(size_average=True,reduce=True).to(device)
 
-    optimizer = torch.optim.Adam(params_list, lr=args.LR)
-    cfg.LR=args.LR
-    cfg.nEpochs = args.nEpochs
+    optimizer = torch.optim.Adam(params_list, lr=cfg.LR)
 
     # Init data writer
     
-    train_epochs(model_pos, optimizer, cfg, args, train_loader, pose_generator, criterion,test_loader,cfg.pred_json)
+    train_epochs(model_pos, optimizer, cfg, train_loader, pose_generator, criterion,test_loader,cfg.pred_json,writer_dict)
 
 
+    writer_dict['writer'].close()

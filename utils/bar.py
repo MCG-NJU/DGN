@@ -64,7 +64,8 @@ class WritelnMixin(object):
 
     def clearln(self):
         if self.file.isatty():
-            print('\r\x1b[K', end='', file=self.file)
+            # print('\r\x1b[K', end='', file=self.file)
+            print('\r')
 
     def writeln(self, line):
         if self.file.isatty():

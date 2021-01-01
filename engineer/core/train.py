@@ -11,20 +11,37 @@ import torch
 from engineer.core.eval import eval_map
 from engineer.utils import lr_step_method as optim
 
-def train_epochs(model_pos,optimizer,cfg,args,train_loader,pose_generator,criterion,test_loader,pred_json):
-    epochs = args.nEpochs
-
+def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion,test_loader,pred_json,writer_dict):
     best_map =None
+
+    begin_epoch = 0
+
+    # add resume function
+    checkpoint_file = os.path.join(cfg.checkpoints, 'checkpoint.pth')
+    if cfg.AUTO_RESUME and os.path.exists(checkpoint_file):
+        print("=> loading checkpoint '{}'".format(checkpoint_file))
+        checkpoint = torch.load(checkpoint_file)
+        begin_epoch = checkpoint['epoch']+1
+        best_map = checkpoint['map']
+        writer_dict['train_step'] = checkpoint['train_step']
+        writer_dict['valid_step'] = checkpoint['valid_step']
+        model_pos.load_state_dict(checkpoint['state_dict'])
+
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        print("=> loaded checkpoint '{}' (epoch {})".format(checkpoint_file, checkpoint['epoch']))
+
+    
     writer_map = open(os.path.join(cfg.checkpoints,"mAP.txt"),'w')
-    for epoch in range(epochs):
-        print("Epoch :{}".format(epoch))
+    for epoch in range(begin_epoch, cfg.nEpochs):
+        if epoch > 0:
+            print("=> start from epoch {}, count from epoch 0".format(epoch + 1))
         #average
         epoch_loss_2d_pos = AverageMeter()
         epoch_loss_heat_map = AverageMeter()
         batch_time = AverageMeter()
         data_time = AverageMeter()
         end = time.time()
-        bar = Bar('Train', max=len(train_loader))
+        bar = Bar('Train', max=int(len(train_loader) // cfg.PRINT_FREQ)+1)
         for _,batches in enumerate(train_loader):
             inps, orig_img_list, img_name_list, boxes, scores, pt1, pt2, gts_list, dts_list = batches
             if pose_generator is not None:
@@ -69,19 +86,46 @@ def train_epochs(model_pos,optimizer,cfg,args,train_loader,pose_generator,criter
             epoch_loss_heat_map.update(loss_heat_map.item(), bz)
             batch_time.update(time.time() - end)
             end = time.time()
-            bar.suffix = '({batch}/{size}) Data: {data:.6f}s | Batch: {bt:.3f}s | Total: {ttl:} | ETA: {eta:} ' \
-                         '| Loss: {loss: .4f}| Loss_heat:{heat: .4f}| LR:{LR: .6f}' \
-                .format(batch=_ + 1, size=len(train_loader), data=data_time.val, bt=batch_time.avg,
-                        ttl=bar.elapsed_td, eta=bar.eta_td, loss=epoch_loss_2d_pos.avg,heat=epoch_loss_heat_map.avg,LR=lr)
-            bar.next()
+            # add writer dict
+            writer = writer_dict['writer']
+            train_step = writer_dict['train_step']
+            writer.add_scalar('train_loss', epoch_loss_2d_pos.avg, train_step)
+            writer_dict['train_step'] = train_step + 1
+
+            if _ % cfg.PRINT_FREQ == 0:
+                bar.suffix = '({batch}/{size}) Data: {data:.6f}s | Batch: {bt:.3f}s | Total: {ttl:} | ETA: {eta:} ' \
+                            '| Loss: {loss: .4f}| Loss_heat:{heat: .4f}| LR:{LR: .6f}' \
+                    .format(batch=_ + 1, size=len(train_loader), data=data_time.val, bt=batch_time.avg,
+                            ttl=bar.elapsed_td, eta=bar.eta_td, loss=epoch_loss_2d_pos.avg,heat=epoch_loss_heat_map.avg,LR=lr)
+                bar.next()
         bar.finish()
         mAP,ap = eval_map(pose_generator,model_pos,test_loader,pred_json,best_json=cfg.best_json,target_json=cfg.target_json)
         writer_map.write("{}\t{}\t{}\n".format(epoch,mAP,ap))
         writer_map.flush()
+        valid_step = writer_dict['valid_step']
+        writer.add_scalar('valid_mAP', mAP, valid_step)
+        writer_dict['valid_step'] = valid_step + 1
         if best_map is None or best_map<mAP:
             best_map=mAP
             torch.save(model_pos.state_dict(), os.path.join(cfg.checkpoints, "best_checkpoint.pth"))
 
         model_pos.train()
         torch.set_grad_enabled(True)
-        torch.save(model_pos.state_dict(),os.path.join(cfg.checkpoints,"{}.pth".format(epoch)))
+        # save checkpoints
+        save_dict = {
+            'epoch': epoch,
+            'model': cfg.model.type,
+            'state_dict': model_pos.state_dict(),
+            'map': best_map,
+            'optimizer': optimizer.state_dict(),
+            'train_step': writer_dict['train_step'],
+            'valid_step': writer_dict['valid_step']
+        }
+        save_path = os.path.join(cfg.checkpoints,"{}.pth".format(epoch))
+        torch.save(save_dict,save_path)
+        root = '/home/tujun/projects/OPEC-Net'
+        softlink = os.path.join(cfg.checkpoints,'checkpoint.pth')
+        if os.path.exists(softlink):
+            os.remove(softlink)
+            os.symlink(os.path.join(root, save_path), softlink)
+        

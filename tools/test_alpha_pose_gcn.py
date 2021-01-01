@@ -56,7 +56,7 @@ if __name__ == "__main__":
     model_pos.to(device)
     model_pos.eval()
 
-    criterion = nn.L1Loss(size_average=True,reduce=True).to(device)
+    criterion = nn.L1Loss().to(device)
 
     # Init data writer
 
@@ -64,5 +64,5 @@ if __name__ == "__main__":
                        target_json=cfg.target_json)
 
     print(mAP,ap)
-
+nn.L1Loss()
 

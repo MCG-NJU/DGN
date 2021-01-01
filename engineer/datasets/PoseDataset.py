@@ -50,6 +50,7 @@ class PoseDataset(Dataset):
         types = self.data_type[item]
         orig_img = os.path.join(self.img_dir[types], img_name)
         orig_img = [cv2.imread(orig_img)]
+        assert orig_img[0] is not None
         dts = self.dts_list[item]
         gts = self.gts_list[item]
         scores = torch.from_numpy(np.asarray(self.score_list[item])).float().view(-1, 1)

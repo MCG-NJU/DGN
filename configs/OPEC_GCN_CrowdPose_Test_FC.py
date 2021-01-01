@@ -50,13 +50,15 @@ data = dict(
 checkpoints = "./checkpoints"
 # optimizer
 optim_para=dict(
-    optimizer = dict(type='Adam',lr=0.002),
+    optimizer = dict(type='Adam',lr=0.0005),
     lr_decay=2,
     lr_gamma= 0.96
 )
 
 # log path
-log_path = "CrowdPose_FC/"
+log_path = "CrowdPose_FC_batch24/"
+# print frequent
+PRINT_FREQ = 100
 
 #init params
 sigmas = np.array(
@@ -72,9 +74,11 @@ lr_stone = [15,20]
 
 #solver
 lr_policy="cosine"
-lr_warm_up = 4e-5
+lr_warm_up = 1e-5
 warm_epoch=1
-LR=1e-3
-nEpochs=25
+LR=4e-3
+nEpochs=30
+
+AUTO_RESUME = True
 
 name=__name__
