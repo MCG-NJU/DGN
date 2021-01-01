@@ -127,5 +127,5 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion,t
         softlink = os.path.join(cfg.checkpoints,'checkpoint.pth')
         if os.path.exists(softlink):
             os.remove(softlink)
-            os.symlink(os.path.join(root, save_path), softlink)
+        os.symlink(os.path.join(root, save_path), softlink)
         
