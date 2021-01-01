@@ -34,7 +34,7 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion,t
     writer_map = open(os.path.join(cfg.checkpoints,"mAP.txt"),'w')
     for epoch in range(begin_epoch, cfg.nEpochs):
         if epoch > 0:
-            print("=> start from epoch {}, count from epoch 0".format(epoch + 1))
+            print("=> start epoch {}, count from epoch 0".format(epoch))
         #average
         epoch_loss_2d_pos = AverageMeter()
         epoch_loss_heat_map = AverageMeter()
