@@ -37,7 +37,7 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion,t
             print("=> start epoch {}, count from epoch 0".format(epoch))
         #average
         epoch_loss_2d_pos = AverageMeter()
-        epoch_loss_heat_map = AverageMeter()
+        # epoch_loss_heat_map = AverageMeter()
         batch_time = AverageMeter()
         data_time = AverageMeter()
         end = time.time()
@@ -45,15 +45,15 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion,t
         for _,batches in enumerate(train_loader):
             inps, orig_img_list, img_name_list, boxes, scores, pt1, pt2, gts_list, dts_list = batches
             if pose_generator is not None:
-                dts,gt_2d,hm_4,ret_features = pose_generator(inps,orig_img_list,img_name_list,boxes,scores,pt1,pt2,gts_list,dts_list)
+                dts,gt_2d,hm_4,ret_features,heatmaps = pose_generator(inps,orig_img_list,img_name_list,boxes,scores,pt1,pt2,gts_list,dts_list)
                 dts = dts.cuda()
                 gt_2d = gt_2d.cuda()
-                hm_4 = hm_4.cuda()
+                # hm_4 = hm_4.cuda()
                 ret_features = [ret.cuda() for ret in ret_features]
                 bz = dts.shape[0]
                 data_time.update(time.time() - end)
-                out_2d, heat_map_regress, inter_gral_x = model_pos(dts, hm_4, ret_features)
-                heat_map_regress = heat_map_regress.view(-1, 12, 2)
+                out_2d = model_pos(dts, heatmaps, ret_features)
+                # heat_map_regress = heat_map_regress.view(-1, 12, 2)
             else:
                 out_2d, heat_map_regress, inter_gral_x, gt_2d, bz = model_pos(inps,orig_img_list,img_name_list,boxes,scores,pt1,pt2,gts_list,dts_list)
                 heat_map_regress = heat_map_regress.view(-1, 12, 2)
@@ -75,15 +75,15 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion,t
             loss_2d_pos_0 = criterion(out_2d_0, gt_2d)
             loss_2d_pos_1 = criterion(out_2d_1, gt_2d)
             loss_2d_pos_2 = criterion(out_2d_2, gt_2d)
-            loss_heat_map = criterion(heat_map_regress[labels>0].view(-1,2), gt_2d)
-            loss_2d_pos = 0.3*loss_2d_pos_0+0.5*loss_2d_pos_1+loss_2d_pos_2+loss_heat_map
+            # loss_heat_map = criterion(heat_map_regress[labels>0].view(-1,2), gt_2d)
+            loss_2d_pos = 0.3*loss_2d_pos_0+0.5*loss_2d_pos_1+loss_2d_pos_2
             loss_2d_pos.backward()
 
             if True:
                 nn.utils.clip_grad_norm_(model_pos.parameters(), max_norm=1)
             optimizer.step()
             epoch_loss_2d_pos.update(loss_2d_pos.item(),bz)
-            epoch_loss_heat_map.update(loss_heat_map.item(), bz)
+            # epoch_loss_heat_map.update(loss_heat_map.item(), bz)
             batch_time.update(time.time() - end)
             end = time.time()
             # add writer dict
@@ -94,9 +94,9 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion,t
 
             if _ % cfg.PRINT_FREQ == 0:
                 bar.suffix = '({batch}/{size}) Data: {data:.6f}s | Batch: {bt:.3f}s | Total: {ttl:} | ETA: {eta:} ' \
-                            '| Loss: {loss: .4f}| Loss_heat:{heat: .4f}| LR:{LR: .6f}' \
+                            '| Loss: {loss: .4f}| LR:{LR: .6f}' \
                     .format(batch=_ + 1, size=len(train_loader), data=data_time.val, bt=batch_time.avg,
-                            ttl=bar.elapsed_td, eta=bar.eta_td, loss=epoch_loss_2d_pos.avg,heat=epoch_loss_heat_map.avg,LR=lr)
+                            ttl=bar.elapsed_td, eta=bar.eta_td, loss=epoch_loss_2d_pos.avg,LR=lr)
                 bar.next()
         bar.finish()
         mAP,ap = eval_map(pose_generator,model_pos,test_loader,pred_json,best_json=cfg.best_json,target_json=cfg.target_json)

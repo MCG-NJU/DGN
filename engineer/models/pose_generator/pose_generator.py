@@ -42,7 +42,7 @@ class Pose_Generator():
             self.hm_normalize(hm_1_4,h_4,w_4)
             self.normalize_only(dts_epoch,pt1,pt2)
             dts = torch.from_numpy(dts_epoch).float()
-            return dts,hm_1_4,ret_features
+            return dts,hm_1_4,ret_features,hm
         else:
             for gts,dts in zip(gts_list,dts_list):
                 gts = np.asarray(gts)
@@ -61,7 +61,7 @@ class Pose_Generator():
             dts = torch.from_numpy(dts_epoch).float()
             gts = torch.from_numpy(gts_epoch).float()
 
-            return dts,gts,hm_1_4,ret_features
+            return dts,gts,hm_1_4,ret_features,hm
 
 
     def extract_features_joints(self,ret_features,hms):

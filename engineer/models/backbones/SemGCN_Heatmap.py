@@ -1,17 +1,16 @@
 import torch.nn as nn
 import torch
+import torch.nn.functional as F
 from engineer.models.registry import BACKBONES
-from engineer.models.common.helper import *
+# from engineer.models.common.helper import *
 from engineer.models.common.semgcn_helper import _ResGraphConv_Attention,SemGraphConv,_GraphConv
 from engineer.models.common.HM import HM_Extrect
 from scipy import sparse as sp
 import numpy as np
 
-
-
 @BACKBONES.register_module
-class SemGCN_FC(nn.Module):
-    def __init__(self,adj,num_joints, hid_dim, coords_dim=(2, 2), p_dropout=None):
+class SemGCN_Heatmaps(nn.Module):
+    def __init__(self, adj, num_joints, hid_dim, coords_dim, p_dropout=None):
         '''
         :param adj:  adjacency matrix using for
         :param hid_dim:
@@ -20,23 +19,12 @@ class SemGCN_FC(nn.Module):
         :param nodes_group:
         :param p_dropout:
         '''
+        super().__init__()
 
-        super(SemGCN_FC, self).__init__()
-
-
-        self.heat_map_head =[]
-
-        self.gcn_head=[]
-        self.generator_map=[]
-
-
-        self.heat_map_generator =HM_Extrect(12)
-
-        self.heat_map_head.append(self.heat_map_generator)
-        self.adj = self._build_adj_mx_from_edges(num_joints,adj)
+        self.heat_map_generator = HM_Extrect(num_joints)
+        self.num_joints = num_joints
+        self.adj = self._build_adj_mx_from_edges(num_joints, adj)
         adj = self.adj_matrix
-
-
 
         self.gconv_input = _GraphConv(adj, coords_dim[0], hid_dim[0], p_dropout=p_dropout)
         # in here we set 4 gcn model in this part
@@ -51,41 +39,34 @@ class SemGCN_FC(nn.Module):
         self.gconv_output3 = SemGraphConv(640, coords_dim[1], adj)
 
 
-        self.gcn_head.append(self.gconv_input)
-        self.gcn_head.append(self.gconv_layers1)
-        self.gcn_head.append(self.gconv_layers2)
-        self.gcn_head.append(self.gconv_layers3)
-        self.gcn_head.append(self.gconv_layers4)
-        self.gcn_head.append(self.gconv_output1)
-        self.gcn_head.append(self.gconv_output2)
-        self.gcn_head.append(self.gconv_output3)
-
-        #FC
-        self.FC = nn.Sequential(nn.Sequential(make_fc(5120,1024),nn.ReLU(inplace=True)),nn.Sequential(make_fc(1024,1024),nn.ReLU(inplace=True)),make_fc(1024,2))
-        self.gcn_head.append(self.FC)
-
-
-    # this is grid_sample author version, he never uses it.
-    def extract_features_joints(self,ret_features,hms):
+    def extract_joints_features(self, merged_features, heatmaps):
         '''
-        extract features from joint feature_map
-
-        :return:
+        :param merged_features: three chunks of features from different layers
+        :param heatmaps: heatmaps for all joints, num_joints x H x W
+        return: list of features, B x num_joints x C
         '''
-
         joint_features = []
 
+        for features in merged_features:
+            B,C,H,W = features.shape
+            hm_s = F.interpolate(heatmaps, size=[H, W])
+            assert B==heatmaps.size(0)
+            joint_feats_list = []
+            for joint_idx in range(self.num_joints):
+                hm_i = hm_s[:, joint_idx].unsqueeze(1).repeat(1,C,1,1)
+                features_i = features * hm_i
+                feature_vector_i = F.adaptive_avg_pool2d(features_i, 1) + F.adaptive_max_pool2d(features_i, 1)
+                feature_vector_i.squeeze_()
+                joint_feats_list.append(feature_vector_i)
+            joint_features.append(torch.stack(joint_feats_list, dim=1))
 
-        for feature, hm_pred in zip(ret_features, hms):
-            joint_feature = torch.zeros([feature.shape[0], feature.shape[1], hm_pred.shape[1]]).cuda()
-            for bz in range(feature.shape[0]):
-                for joint in range(hm_pred.shape[1]):
-                    joint_feature[bz, :, joint] = feature[bz, :, hm_pred[bz, joint, 1], hm_pred[bz, joint, 0]]
-            joint_features.append(joint_feature)
         return joint_features
+
+
     @property
     def adj_matrix(self):
         return self.adj
+
 
     @adj_matrix.setter
     def adj_matrix(self,adj_matrix):
@@ -127,31 +108,24 @@ class SemGCN_FC(nn.Module):
         return adj_mx_from_edges(num_joints, edge, False)
 
 
-    def forward(self, x,hm_4,ret_features):
-
-
-        results,heat_map = self.heat_map_generator(ret_features)
-        bs = heat_map.shape[0]
-        heat_map_intergral = self.FC(heat_map.view(bs*12,-1)).view(bs,24)
-
-
-        hm_4 = heat_map_intergral.view(-1,12,2)
-        j_1_16 = F.grid_sample(results[0],hm_4[:,None,:,:]).squeeze(2)
-        j_1_8 = F.grid_sample(results[1],hm_4[:,None,:,:]).squeeze(2)
-        j_1_4 = F.grid_sample(results[2],hm_4[:,None,:,:]).squeeze(2)
-
-        # x = torch.cat([hm_4,score],-1)
+    def forward(self, x, heatmaps, ret_features):
+        # print(f"x.shape:{x.shape}, heatmaps.shape:{heatmaps.shape}")
+        # for feats in ret_features:
+        #     print(feats.shape)
+        results, _ = self.heat_map_generator(ret_features)
+        
+        joint_feats = self.extract_joints_features(results, heatmaps)
+        
         out = self.gconv_input(x)
-        #gconv_layers in here is residual GCN.
-        #label == 0
-        out = self.gconv_layers1(out,None)
-        out = self.gconv_layers2(out,j_1_16)
+        out = self.gconv_layers1(out, None)
+     
+        out = self.gconv_layers2(out, joint_feats[0])
         out1 = self.gconv_output1(out)
 
-        out = self.gconv_layers3(out,j_1_8)
+        out = self.gconv_layers3(out, joint_feats[1])
         out2 = self.gconv_output2(out)
 
-        out = self.gconv_layers4(out,j_1_4)
+        out = self.gconv_layers4(out, joint_feats[2])
         out3 = self.gconv_output3(out)
 
-        return [out1,out2,out3],heat_map_intergral,x
+        return [out1, out2, out3]

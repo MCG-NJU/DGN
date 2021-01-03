@@ -56,7 +56,7 @@ class _ResGraphConv_Attention(nn.Module):
         if joint_features is None:
             residual = x
         else:
-            joint_features = joint_features.transpose(1,2).contiguous()
+            # joint_features = joint_features.transpose(1,2).contiguous()
             x = torch.cat([joint_features,x],dim=2)
             residual = x
         out = self.gconv1(x)

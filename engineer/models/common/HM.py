@@ -24,6 +24,12 @@ class HM_Extrect(nn.Module):
     def forward(self,features):
         results = []
 
+        # print("input features shape:")
+        # for i, feats in enumerate(features):
+        #     print(f"{i}th feats shape is {feats.shape}")
+
+        # exit()
+
         x = F.relu(self.level_conv1_1(features[0]))
         results.append(x)
         x = F.relu(self.level_conv1_up(x))
@@ -35,4 +41,9 @@ class HM_Extrect(nn.Module):
         x = self.attention_conv2_up_a(x,features[2])
         x = (F.relu(self.level_conv3_1(x)))
         results.append(x)
+
+        # print("output features shape:")
+        # for i in range(3):
+        #     print(f"results[{i}].shape is {results[i].shape}")
+        # exit()
         return results,self.level_conv_out(x)
