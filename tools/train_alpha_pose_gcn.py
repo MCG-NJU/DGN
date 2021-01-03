@@ -67,17 +67,17 @@ if __name__ == "__main__":
     model_pos.train()
 
     #optim_machine
-    param_list = []
-    for module in model_pos.module.gcn_head:
-        params_list = group_weight.group_weight(param_list,module,cfg.LR)
-    for module in model_pos.module.heat_map_head:
-        params_list = group_weight.group_weight(param_list,module,cfg.LR)
-    for module in model_pos.module.generator_map:
-        params_list = group_weight.group_weight(param_list,module,cfg.LR)
+    # param_list = []
+    # for module in model_pos.module.gcn_head:
+    #     params_list = group_weight.group_weight(param_list,module,cfg.LR)
+    # for module in model_pos.module.heat_map_head:
+    #     params_list = group_weight.group_weight(param_list,module,cfg.LR)
+    # for module in model_pos.module.generator_map:
+    #     params_list = group_weight.group_weight(param_list,module,cfg.LR)
 
-    criterion = nn.L1Loss(size_average=True,reduce=True).to(device)
+    criterion = nn.L1Loss().to(device)
 
-    optimizer = torch.optim.Adam(params_list, lr=cfg.LR)
+    optimizer = torch.optim.Adam(model_pos.parameters(), lr=cfg.LR)
 
     # Init data writer
     
