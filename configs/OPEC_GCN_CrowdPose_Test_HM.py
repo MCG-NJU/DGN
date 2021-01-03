@@ -77,7 +77,7 @@ lr_policy="cosine"
 lr_warm_up = 1e-5
 warm_epoch=1
 LR=4e-3
-nEpochs=25
+nEpochs=30
 
 AUTO_RESUME = True
 
