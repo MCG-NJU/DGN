@@ -11,7 +11,8 @@ import torch
 from engineer.core.eval import eval_map
 from engineer.utils import lr_step_method as optim
 
-def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion,test_loader,pred_json,writer_dict):
+
+def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1, criterion2,test_loader,pred_json,writer_dict):
     best_map =None
 
     begin_epoch = 0
@@ -38,6 +39,7 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion,t
         #average
         epoch_loss_2d_pos = AverageMeter()
         epoch_loss_heat_map = AverageMeter()
+        epoch_loss_score = AverageMeter()
         batch_time = AverageMeter()
         data_time = AverageMeter()
         end = time.time()
@@ -71,12 +73,14 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion,t
             gt_2d = gt_2d[labels > 0].view(-1, 2)
             out_2d_0 = out_2d[0][labels > 0].view(-1, 2)
             out_2d_1 = out_2d[1][labels > 0].view(-1, 2)
-            out_2d_2 = out_2d[2][labels > 0].view(-1, 2)
-            loss_2d_pos_0 = criterion(out_2d_0, gt_2d)
-            loss_2d_pos_1 = criterion(out_2d_1, gt_2d)
-            loss_2d_pos_2 = criterion(out_2d_2, gt_2d)
-            loss_heat_map = criterion(heat_map_regress[labels>0].view(-1,2), gt_2d)
-            loss_2d_pos = 0.3*loss_2d_pos_0+0.5*loss_2d_pos_1+loss_2d_pos_2+loss_heat_map
+            out_2d_2 = out_2d[2][:,...,:2][labels > 0].view(-1, 2)
+            out_score = out_2d[2][:,...,2][labels[:,...,0]>0]
+            loss_2d_pos_0 = criterion1(out_2d_0, gt_2d)
+            loss_2d_pos_1 = criterion1(out_2d_1, gt_2d)
+            loss_2d_pos_2 = criterion1(out_2d_2, gt_2d)
+            loss_heat_map = criterion1(heat_map_regress[labels>0].view(-1,2), gt_2d)
+            loss_score = criterion2(out_2d_2.detach(), gt_2d, out_score)
+            loss_2d_pos = 0.3*loss_2d_pos_0+0.5*loss_2d_pos_1+loss_2d_pos_2+loss_heat_map + loss_score
             loss_2d_pos.backward()
 
             if True:
@@ -84,19 +88,22 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion,t
             optimizer.step()
             epoch_loss_2d_pos.update(loss_2d_pos.item(),bz)
             epoch_loss_heat_map.update(loss_heat_map.item(), bz)
+            epoch_loss_score.update(loss_score.item(), bz)
             batch_time.update(time.time() - end)
             end = time.time()
             # add writer dict
             writer = writer_dict['writer']
             train_step = writer_dict['train_step']
-            writer.add_scalar('train_loss', epoch_loss_2d_pos.avg, train_step)
+            writer.add_scalar('train/total_loss', epoch_loss_2d_pos.avg, train_step)
+            writer.add_scalar('train/score_loss', epoch_loss_score.avg, train_step)
             writer_dict['train_step'] = train_step + 1
 
             if _ % cfg.PRINT_FREQ == 0:
                 bar.suffix = '({batch}/{size}) Data: {data:.6f}s | Batch: {bt:.3f}s | Total: {ttl:} | ETA: {eta:} ' \
-                            '| Loss: {loss: .4f}| Loss_heat:{heat: .4f}| LR:{LR: .6f}' \
+                            '| Loss: {loss: .4f}| Loss_heat:{heat: .4f}| loss_score:{score:.4f}| LR:{LR: .6f}' \
                     .format(batch=_ + 1, size=len(train_loader), data=data_time.val, bt=batch_time.avg,
-                            ttl=bar.elapsed_td, eta=bar.eta_td, loss=epoch_loss_2d_pos.avg,heat=epoch_loss_heat_map.avg,LR=lr)
+                            ttl=bar.elapsed_td, eta=bar.eta_td, loss=epoch_loss_2d_pos.avg,heat=epoch_loss_heat_map.avg,
+                            score=epoch_loss_score.avg, LR=lr)
                 bar.next()
         bar.finish()
         mAP,ap = eval_map(pose_generator,model_pos,test_loader,pred_json,best_json=cfg.best_json,target_json=cfg.target_json)

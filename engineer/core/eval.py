@@ -255,7 +255,7 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
             alpha_pose_generator.inverse_normalize_only(dts, pt1, pt2)
             alpha_pose_generator.inverse_normalize_only(inter_gral_x[...,:2], pt1, pt2)
             dts_003 = dts.copy()
-            adj_joints = np.concatenate([out_2d,scores],axis=-1)
+            adj_joints = np.concatenate([out_2d[:,...,:2],scores],axis=-1)
             dts_003[labels<0.2] = adj_joints[labels<0.2]
             for bz in range(dts_003.shape[0]):
                 index = item[bz]
@@ -263,7 +263,7 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
                 ind = best_pose_match[bz]
                 if ind is not None:
                     id2keypoints[name][ind] = dts_003[bz,...].reshape(-1).tolist()
-                json_file_ori[index]['keypoints'] = adj_joints[bz,...].reshape(-1).tolist()
+                json_file_ori[index]['keypoints'] = out_2d[bz,...].reshape(-1).tolist()
                 json_file_0_03[index]['keypoints'] = dts_003[bz,...].reshape(-1).tolist()
     new_best_match =[]
     for key,keypoints in id2keypoints.items():
@@ -279,7 +279,7 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
 
 
     #test results on best_best_match method in here and only PIN method
-    best_match_map,_,_ = eval_results(new_best_match,target_json)
+    reference_map,_,_ = eval_results(json_file_0_03,target_json)
 
-    ap003,_,_ = eval_results(json_file_0_03,target_json)
-    return ap003,best_match_map
+    ap003,_,_ = eval_results(json_file_ori,target_json)
+    return ap003,reference_map

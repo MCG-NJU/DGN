@@ -52,6 +52,7 @@ if __name__ == "__main__":
     #gcn model maker
 
     model_pos = build_backbone(cfg.model)
+    model_pos = torch.nn.DataParallel(model_pos, device_ids=cfg.GPUS)
     model_pos.load_state_dict(torch.load(checkpoints))
     model_pos.to(device)
     model_pos.eval()
