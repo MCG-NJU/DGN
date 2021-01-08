@@ -36,7 +36,7 @@ class SemGCN_Heatmaps(nn.Module):
 
         self.gconv_output1 = SemGraphConv(384, coords_dim[1], adj)
         self.gconv_output2 = SemGraphConv(512, coords_dim[1], adj)
-        self.gconv_output3 = SemGraphConv(640, coords_dim[1], adj)
+        self.gconv_output3 = SemGraphConv(640, coords_dim[0], adj)
 
 
     def extract_joints_features(self, merged_features, heatmaps):
@@ -110,11 +110,16 @@ class SemGCN_Heatmaps(nn.Module):
 
     def forward(self, x, heatmaps, ret_features):
         # print(f"x.shape:{x.shape}, heatmaps.shape:{heatmaps.shape}")
-        # for feats in ret_features:
-        #     print(feats.shape)
+        for feats in ret_features:
+            print(feats.shape)
+        exit()
         results, _ = self.heat_map_generator(ret_features)
         
         joint_feats = self.extract_joints_features(results, heatmaps)
+        # print(f"len(joint_feats):{len(joint_feats)}")
+        # for i, elem in enumerate(joint_feats):
+        #     print(f"elem[{i}].shape is {[elem.shape]}")
+        # exit()
         
         out = self.gconv_input(x)
         out = self.gconv_layers1(out, None)

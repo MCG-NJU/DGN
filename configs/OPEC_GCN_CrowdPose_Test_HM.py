@@ -56,7 +56,7 @@ optim_para=dict(
 )
 
 # log path
-log_path = "CrowdPose_heatmaps/"
+log_path = "CrowdPose_heatmaps_test/"
 # print frequent
 PRINT_FREQ = 100
 
@@ -76,8 +76,8 @@ lr_stone = [15,20]
 lr_policy="cosine"
 lr_warm_up = 1e-5
 warm_epoch=1
-LR=4e-3
-nEpochs=30
+LR=1e-3 * len(GPUS)
+nEpochs=35
 
 AUTO_RESUME = True
 

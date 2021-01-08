@@ -48,7 +48,8 @@ class SemGCN_FC(nn.Module):
 
         self.gconv_output1 = SemGraphConv(384, coords_dim[1], adj)
         self.gconv_output2 = SemGraphConv(512, coords_dim[1], adj)
-        self.gconv_output3 = SemGraphConv(640, coords_dim[1], adj)
+        # only supervise score at the end
+        self.gconv_output3 = SemGraphConv(640, coords_dim[0], adj)
 
 
         self.gcn_head.append(self.gconv_input)
@@ -132,10 +133,10 @@ class SemGCN_FC(nn.Module):
 
         results,heat_map = self.heat_map_generator(ret_features)
         bs = heat_map.shape[0]
-        heat_map_intergral = self.FC(heat_map.view(bs*12,-1)).view(bs,24)
-
+        heat_map_intergral = self.FC(heat_map.view(bs*12,-1)).view(bs,-1)
 
         hm_4 = heat_map_intergral.view(-1,12,2)
+        
         j_1_16 = F.grid_sample(results[0],hm_4[:,None,:,:]).squeeze(2)
         j_1_8 = F.grid_sample(results[1],hm_4[:,None,:,:]).squeeze(2)
         j_1_4 = F.grid_sample(results[2],hm_4[:,None,:,:]).squeeze(2)

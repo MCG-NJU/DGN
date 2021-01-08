@@ -19,6 +19,7 @@ from engineer.datasets.builder import build_dataset
 from engineer.models.builder import build_generator,build_backbone
 from engineer.core.train import  train_epochs
 from utils import group_weight
+from engineer.core.loss import ScoreLoss
 
 from tensorboardX import SummaryWriter
 
@@ -75,13 +76,14 @@ if __name__ == "__main__":
     # for module in model_pos.module.generator_map:
     #     params_list = group_weight.group_weight(param_list,module,cfg.LR)
 
-    criterion = nn.L1Loss().to(device)
+    criterion1 = nn.L1Loss().to(device)
+    criterion2 = ScoreLoss().to(device)
 
     optimizer = torch.optim.Adam(model_pos.parameters(), lr=cfg.LR)
 
     # Init data writer
     
-    train_epochs(model_pos, optimizer, cfg, train_loader, pose_generator, criterion,test_loader,cfg.pred_json,writer_dict)
+    train_epochs(model_pos, optimizer, cfg, train_loader, pose_generator, criterion1, criterion2,test_loader,cfg.pred_json,writer_dict)
 
 
     writer_dict['writer'].close()

@@ -56,7 +56,7 @@ optim_para=dict(
 )
 
 # log path
-log_path = "CrowdPose_FC_batch24/"
+log_path = "CrowdPose_FC_batch24_develop/"
 # print frequent
 PRINT_FREQ = 100
 
