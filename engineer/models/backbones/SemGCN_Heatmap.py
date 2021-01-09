@@ -52,7 +52,7 @@ class SemGCN_Heatmaps(nn.Module):
             hm_s = F.interpolate(heatmaps, size=[H, W])
             assert B==heatmaps.size(0)
             joint_feats_list = []
-            for joint_idx in range(self.num_joints):
+            for joint_idx in range(5, self.num_joints+5):
                 hm_i = hm_s[:, joint_idx].unsqueeze(1).repeat(1,C,1,1)
                 features_i = features * hm_i
                 feature_vector_i = F.adaptive_avg_pool2d(features_i, 1) + F.adaptive_max_pool2d(features_i, 1)
