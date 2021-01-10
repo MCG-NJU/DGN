@@ -110,9 +110,9 @@ class SemGCN_Heatmaps(nn.Module):
 
     def forward(self, x, heatmaps, ret_features):
         # print(f"x.shape:{x.shape}, heatmaps.shape:{heatmaps.shape}")
-        for feats in ret_features:
-            print(feats.shape)
-        exit()
+        # for feats in ret_features:
+        #     print(feats.shape)
+        # exit()
         results, _ = self.heat_map_generator(ret_features)
         
         joint_feats = self.extract_joints_features(results, heatmaps)
