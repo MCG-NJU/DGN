@@ -70,6 +70,9 @@ class SemGCN_Heatmaps(nn.Module):
 
     @adj_matrix.setter
     def adj_matrix(self,adj_matrix):
+        m = (adj_matrix == 0)
+        assert len(m) == 108, f"len(m) is {len(m)}"
+        adj_matrix[m] = 0.001
         self.adj = adj_matrix
 
 

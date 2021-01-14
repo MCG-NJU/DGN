@@ -104,10 +104,10 @@ class SemGraphConv(nn.Module):
         self.W = nn.Parameter(torch.zeros(size=(2, in_features, out_features), dtype=torch.float))
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
 
-        self.adj = adj
-        self.m = (self.adj > 0)
-        self.e = nn.Parameter(torch.zeros(len(self.m.nonzero()), dtype=torch.float))
-        nn.init.constant_(self.e.data, 1)
+        self.adj = nn.Parameter(adj)
+        # self.m = (self.adj > 0)
+        # self.e = nn.Parameter(torch.zeros(len(self.m.nonzero()), dtype=torch.float))
+        # nn.init.constant_(self.e.data, 1)
 
         if bias:
             self.bias = nn.Parameter(torch.zeros(out_features, dtype=torch.float))
@@ -123,10 +123,11 @@ class SemGraphConv(nn.Module):
 
 
 
-        adj = -9e15 * torch.ones_like(self.adj).to(input.device)
+        # adj = -9e15 * torch.ones_like(self.adj).to(input.device)
 
-        adj[self.m] = self.e
-        adj = F.softmax(adj, dim=1)
+        # adj[self.m] = self.e
+        # adj = F.softmax(adj, dim=1)
+        adj = self.adj
 
 
 
