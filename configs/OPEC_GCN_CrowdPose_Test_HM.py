@@ -77,7 +77,7 @@ lr_policy="cosine"
 lr_warm_up = 1e-5
 warm_epoch=1
 LR=1e-3 * len(GPUS)
-nEpochs=35
+nEpochs=40
 
 AUTO_RESUME = True
 
