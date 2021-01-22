@@ -29,7 +29,7 @@ if __name__ == "__main__":
     assert args.config is not None,"you must give your model config"
     cfg = Config.fromfile(args.config)
 
-    checkpoints = os.path.join(args.load_dirs,"best_checkpoint.pth")
+    checkpoints = os.path.join(cfg.checkpoints, cfg.log_path,"best_checkpoint.pth")
 
     assert os.path.exists(checkpoints)
 
