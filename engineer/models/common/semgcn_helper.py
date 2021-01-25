@@ -104,7 +104,9 @@ class SemGraphConv(nn.Module):
         self.W = nn.Parameter(torch.zeros(size=(2, in_features, out_features), dtype=torch.float))
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
 
-        self.adj = nn.Parameter(adj)
+        self.adj = nn.Parameter(torch.zeros_like(adj, dtype=torch.float))
+        with torch.no_grad():
+            self.adj.data = adj.clone()
         # self.m = (self.adj > 0)
         # self.e = nn.Parameter(torch.zeros(len(self.m.nonzero()), dtype=torch.float))
         # nn.init.constant_(self.e.data, 1)
