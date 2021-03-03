@@ -10,7 +10,7 @@ import numpy as np
 
 @BACKBONES.register_module
 class SemGCN_Heatmaps(nn.Module):
-    def __init__(self, adj, num_joints, hid_dim, coords_dim, p_dropout=None):
+    def __init__(self, adj, edge_adj, num_joints, num_edges, hid_dim, coords_dim, p_dropout=None):
         '''
         :param adj:  adjacency matrix using for
         :param hid_dim:
@@ -24,6 +24,7 @@ class SemGCN_Heatmaps(nn.Module):
         self.heat_map_generator = HM_Extrect(num_joints)
         self.num_joints = num_joints
         self.adj = self._build_adj_mx_from_edges(num_joints, adj)
+        self.edge_adj = self._build_adj_mx_from_edges(num_edges, edge_adj)
         adj = self.adj_matrix
 
         self.gconv_input = _GraphConv(adj, coords_dim[0], hid_dim[0], p_dropout=p_dropout)
