@@ -3,7 +3,7 @@ GPUS = (0,1,2,3)
 model = dict(
     type='SemGCN_Heatmaps',
     adj = ([0,1],[0,2],[2,4],[1,3],[3,5],[0,6],[1,7],[6,7],[6,8],[8,10],[7,9],[9,11]),
-    edge_adj = ([0,1],[0,5],[1,5],[0,3],[0,6],[3,6],[1,2],[3,4],[5,7],[5,8],[7,8],[6,7],[6,10],[7,10],[8,9],[10,11])
+    edge_adj = ([0,1],[0,5],[1,5],[0,3],[0,6],[3,6],[1,2],[3,4],[5,7],[5,8],[7,8],[6,7],[6,10],[7,10],[8,9],[10,11]),
     num_joints = 12,
     num_edges = 12,
     hid_dim = [128,128,128,128,128],
@@ -58,7 +58,7 @@ optim_para=dict(
 )
 
 # log path
-log_path = "CrowdPose_heatmaps_dynamic/"
+log_path = "CrowdPose_heatmaps_dynamic_0.2edges/"
 # print frequent
 PRINT_FREQ = 100
 

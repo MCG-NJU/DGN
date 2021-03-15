@@ -3,7 +3,8 @@ import torch
 import torch.nn.functional as F
 from engineer.models.registry import BACKBONES
 # from engineer.models.common.helper import *
-from engineer.models.common.semgcn_helper import _ResGraphConv_Attention,SemGraphConv,_GraphConv
+from engineer.models.common.semgcn_helper import _ResGraphConv_Attention,SemGraphConv,_GraphConv,\
+    EdgeAggregate, JointAggregate
 from engineer.models.common.HM import HM_Extrect
 from scipy import sparse as sp
 import numpy as np
@@ -23,21 +24,123 @@ class SemGCN_Heatmaps(nn.Module):
 
         self.heat_map_generator = HM_Extrect(num_joints)
         self.num_joints = num_joints
+        self.num_edges = num_edges
+
+        self.register_buffer('sub_matrix', self._build_sub_matrix(adj))
+        # sub_matrix = self._build_sub_matrix(adj)
+        self.register_buffer('avg_matrix', self._build_avg_matrix(adj))
+        self.register_buffer('shift', self._build_shift_matrix(adj))
+        ms, me = self._build_joints_shift_matrix(adj)
+        self.register_buffer('start_shift', ms)
+        self.register_buffer('end_shift', me)
+
         self.adj = self._build_adj_mx_from_edges(num_joints, adj)
         self.edge_adj = self._build_adj_mx_from_edges(num_edges, edge_adj)
+        
+        # self.sub_matrix = self._build_sub_matrix(adj)
+        # self.avg_matrix = self._build_avg_matrix(adj)
+        # self.shift = self._build_shift_matrix(adj)
+
         adj = self.adj_matrix
+        edge_adj = self.edge_adj_matrix
 
         self.gconv_input = _GraphConv(adj, coords_dim[0], hid_dim[0], p_dropout=p_dropout)
+        self.econv_input = _GraphConv(edge_adj, coords_dim[0], hid_dim[0], p_dropout=p_dropout)
+        self.aggregate_edges = EdgeAggregate(hid_dim[0], hid_dim[0], hid_dim[0])
+        self.aggregate_joints = JointAggregate(hid_dim[0], hid_dim[0], hid_dim[0], self.num_joints)
         # in here we set 4 gcn model in this part
         self.gconv_layers1 = _ResGraphConv_Attention(adj, hid_dim[0], hid_dim[1], hid_dim[0], p_dropout=p_dropout)
-        self.gconv_layers2 = _ResGraphConv_Attention(adj, hid_dim[1]+256, hid_dim[2]+256, hid_dim[1]+256, p_dropout=p_dropout)
-        self.gconv_layers3 = _ResGraphConv_Attention(adj, hid_dim[2]+384, hid_dim[3]+384, hid_dim[2]+384, p_dropout=p_dropout)
-        self.gconv_layers4 = _ResGraphConv_Attention(adj, hid_dim[3]+512, hid_dim[4]+512, hid_dim[3]+512, p_dropout=p_dropout)
+        self.econv_layers1 = _ResGraphConv_Attention(edge_adj, hid_dim[0], hid_dim[1], hid_dim[0], p_dropout=p_dropout)
 
+        self.aggregate_edges1 = EdgeAggregate(hid_dim[1], hid_dim[1], hid_dim[1])
+        self.aggregate_joints1 = JointAggregate(hid_dim[1], hid_dim[1], hid_dim[1], self.num_joints)
+
+        self.gconv_layers2 = _ResGraphConv_Attention(adj, hid_dim[1]+256, hid_dim[2]+256, hid_dim[1]+256, p_dropout=p_dropout)
+        self.econv_layers2 = _ResGraphConv_Attention(edge_adj, hid_dim[1], hid_dim[2], hid_dim[1], p_dropout=p_dropout)
+
+        self.aggregate_edges2 = EdgeAggregate(384, hid_dim[2], hid_dim[2])
+        self.aggregate_joints2 = JointAggregate(384, hid_dim[2], hid_dim[2]+256, self.num_joints)
+
+        self.gconv_layers3 = _ResGraphConv_Attention(adj, hid_dim[2]+384, hid_dim[3]+384, hid_dim[2]+384, p_dropout=p_dropout)
+        self.econv_layers3 = _ResGraphConv_Attention(edge_adj, hid_dim[2], hid_dim[3], hid_dim[2], p_dropout=p_dropout)
+
+        self.aggregate_edges3 = EdgeAggregate(512, hid_dim[3], hid_dim[3])
+        self.aggregate_joints3 = JointAggregate(512, hid_dim[3], hid_dim[3]+384, self.num_joints)
+
+        self.gconv_layers4 = _ResGraphConv_Attention(adj, hid_dim[3]+512, hid_dim[4]+512, hid_dim[3]+512, p_dropout=p_dropout)
+        self.econv_layers4 = _ResGraphConv_Attention(edge_adj, hid_dim[3], hid_dim[4], hid_dim[3], p_dropout=p_dropout)
 
         self.gconv_output1 = SemGraphConv(384, coords_dim[1], adj)
+        self.econv_output1 = SemGraphConv(hid_dim[2], coords_dim[1], edge_adj)
         self.gconv_output2 = SemGraphConv(512, coords_dim[1], adj)
+        self.econv_output2 = SemGraphConv(hid_dim[3], coords_dim[1], edge_adj)
         self.gconv_output3 = SemGraphConv(640, coords_dim[0], adj)
+        self.econv_output3 = SemGraphConv(hid_dim[4], coords_dim[1], edge_adj)
+
+
+    def _build_shift_matrix(self, adj):
+        assert len(adj)==self.num_edges
+        shift = torch.zeros((3*self.num_edges, 2*self.num_edges))
+        idx_dict = {}
+        count_dict = {}
+        for i in range(12):
+            count_dict[i] = 0
+        for idx, e in enumerate(adj):
+            i,j = e
+            
+            # process i
+            base = count_dict[i] * self.num_joints
+            count_dict[i] += 1
+            new_idx = base + i
+            assert new_idx not in idx_dict
+            idx_dict[new_idx] = self.num_joints + idx
+            
+            # process j
+            base = count_dict[j] * self.num_joints
+            count_dict[j] += 1
+            new_idx = base + j
+            assert new_idx not in idx_dict
+            idx_dict[new_idx] = idx
+        for i,j in idx_dict.items():
+            shift[i,j]=1
+
+        return shift
+
+
+    def _build_sub_matrix(self, adj):
+        """
+        build a matrix to do vertices' features subtraction, according to vertices' adjacency
+        in order to generate information for edges to aggregate
+        """
+        sub_matrix = torch.zeros((self.num_edges, self.num_joints))
+        for idx, e in enumerate(adj):
+            sub_matrix[idx][e[0]] = -1
+            sub_matrix[idx][e[1]] = 1
+
+        return sub_matrix
+
+
+    def _build_avg_matrix(self, adj):
+        """
+        build a matrix to do average operation, to average scores
+        """
+        avg_matrix = torch.zeros((self.num_edges, self.num_joints))
+        for idx, e in enumerate(adj):
+            avg_matrix[idx][e[0]] = 0.5
+            avg_matrix[idx][e[1]] = 0.5
+
+        return avg_matrix
+
+
+    def _build_joints_shift_matrix(self, adj):
+        start_joints_shift = torch.zeros((self.num_edges, self.num_joints))
+        end_joints_shift = torch.zeros((self.num_edges, self.num_joints))
+        for idx, e in enumerate(adj):
+            start_joints_shift[idx][e[0]] = 1
+            end_joints_shift[idx][e[1]] = 1
+        
+        return start_joints_shift, end_joints_shift
+
 
 
     def extract_joints_features(self, merged_features, heatmaps):
@@ -54,7 +157,7 @@ class SemGCN_Heatmaps(nn.Module):
             assert B==heatmaps.size(0)
             joint_feats_list = []
             for joint_idx in range(5, self.num_joints+5):
-                hm_i = hm_s[:, joint_idx].unsqueeze(1).repeat(1,C,1,1)
+                hm_i = hm_s[:, joint_idx].unsqueeze(1) #.repeat(1,C,1,1)
                 features_i = features * hm_i
                 feature_vector_i = F.adaptive_avg_pool2d(features_i, 1) + F.adaptive_max_pool2d(features_i, 1)
                 feature_vector_i.squeeze_()
@@ -69,12 +172,24 @@ class SemGCN_Heatmaps(nn.Module):
         return self.adj
 
 
+    @property
+    def edge_adj_matrix(self):
+        return self.edge_adj
+
+
     @adj_matrix.setter
     def adj_matrix(self,adj_matrix):
         m = (adj_matrix == 0)
         assert len(m) == 108, f"len(m) is {len(m)}"
         adj_matrix[m] = 0.001
         self.adj = adj_matrix
+
+
+    @edge_adj_matrix.setter
+    def edge_adj_matrix(self,edge_adj_matrix):
+        m = (edge_adj_matrix==0)
+        edge_adj_matrix[m] = 0.001
+        self.edge_adj = edge_adj_matrix
 
 
     def _build_adj_mx_from_edges(self,num_joints,edge):
@@ -112,7 +227,7 @@ class SemGCN_Heatmaps(nn.Module):
         return adj_mx_from_edges(num_joints, edge, False)
 
 
-    def forward(self, x, heatmaps, ret_features):
+    def forward(self, x, heatmaps, ret_features, gt=None):
         # print(f"x.shape:{x.shape}, heatmaps.shape:{heatmaps.shape}")
         # for feats in ret_features:
         #     print(feats.shape)
@@ -124,17 +239,69 @@ class SemGCN_Heatmaps(nn.Module):
         # for i, elem in enumerate(joint_feats):
         #     print(f"elem[{i}].shape is {[elem.shape]}")
         # exit()
+
+        assert x.shape[2] == 3
+        assert x.dim() == 3
+        if gt is not None:
+            assert gt.dim() == 3
+
+        # compute detected edges
+        y_coords = self.sub_matrix.matmul(x[:,:,:2])
+        y_score = self.avg_matrix.matmul(x[:,:,2].unsqueeze(dim=2))
+        y = torch.cat([y_coords, y_score], dim=2)
         
-        out = self.gconv_input(x)
-        out = self.gconv_layers1(out, None)
+        gout = self.gconv_input(x)
+        eout = self.econv_input(y)
+
+        # aggregation
+        eout1 = self.aggregate_edges(gout, eout, self.sub_matrix)       
+        gout1 = self.aggregate_joints(gout, eout, self.start_shift, self.end_shift, self.shift)
+
+        gout = self.gconv_layers1(gout1, None)
+        eout = self.econv_layers1(eout1, None)
+
+        # aggregation
+        eout1 = self.aggregate_edges1(gout, eout, self.sub_matrix)
+        gout1 = self.aggregate_joints1(gout, eout, self.start_shift, self.end_shift, self.shift)
      
-        out = self.gconv_layers2(out, joint_feats[0])
-        out1 = self.gconv_output1(out)
+        gout = self.gconv_layers2(gout1, joint_feats[0])
+        eout = self.econv_layers2(eout1, None)
 
-        out = self.gconv_layers3(out, joint_feats[1])
-        out2 = self.gconv_output2(out)
+        joints_out1 = self.gconv_output1(gout)
+        edges_out1 = self.econv_output1(eout)
+        
+        # aggregation
+        eout1 = self.aggregate_edges2(gout, eout, self.sub_matrix)
+        gout1 = self.aggregate_joints2(gout, eout, self.start_shift, self.end_shift, self.shift)
 
-        out = self.gconv_layers4(out, joint_feats[2])
-        out3 = self.gconv_output3(out)
+        gout = self.gconv_layers3(gout1, joint_feats[1])
+        eout = self.econv_layers3(eout1, None)
 
-        return [out1, out2, out3]
+        joints_out2 = self.gconv_output2(gout)
+        edges_out2 = self.econv_output2(eout)
+
+        # aggregation
+        eout1 = self.aggregate_edges3(gout, eout, self.sub_matrix)
+        gout1 = self.aggregate_joints3(gout, eout, self.start_shift, self.end_shift, self.shift)        
+        
+        gout = self.gconv_layers4(gout1, joint_feats[2])
+        eout = self.econv_layers4(eout1, None)
+
+        joints_out3 = self.gconv_output3(gout)
+        edges_out3 = self.econv_output3(eout)
+
+        if gt is not None:
+            # generate gt edges
+            labels = (gt[:,:,2] > 0).float()
+            labels_start = self.start_shift.matmul(labels.unsqueeze(dim=2))
+            labels_end = self.end_shift.matmul(labels.unsqueeze(dim=2))
+            edge_labels = labels_start * labels_end
+
+            gt_edges = self.sub_matrix.matmul(gt[:,:,:2])
+
+            return [joints_out1, joints_out2, joints_out3], [edges_out1, edges_out2, edges_out3], [gt_edges, edge_labels]
+        else:
+            return [joints_out1, joints_out2, joints_out3]
+
+
+    

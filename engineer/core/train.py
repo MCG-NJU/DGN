@@ -40,6 +40,8 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
         epoch_loss_2d_pos = AverageMeter()
         # epoch_loss_heat_map = AverageMeter()
         epoch_loss_score = AverageMeter()
+        epoch_loss_edge = AverageMeter()
+        epoch_loss = AverageMeter()
         batch_time = AverageMeter()
         data_time = AverageMeter()
         end = time.time()
@@ -54,7 +56,7 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
                 ret_features = [ret.cuda() for ret in ret_features]
                 bz = dts.shape[0]
                 data_time.update(time.time() - end)
-                out_2d = model_pos(dts, heatmaps, ret_features)
+                out_2d, edge_2d, edge_gt = model_pos(dts, heatmaps, ret_features, gt=gt_2d)
                 # heat_map_regress = heat_map_regress.view(-1, 12, 2)
             else:
                 out_2d, heat_map_regress, inter_gral_x, gt_2d, bz = model_pos(inps,orig_img_list,img_name_list,boxes,scores,pt1,pt2,gts_list,dts_list)
@@ -69,19 +71,37 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
             optimizer.zero_grad()
             labels = gt_2d[:,...,2]
             labels = labels[:,:,None].repeat(1,1,2)
+
+            gt_edges = edge_gt[0]
+            labels_edges = edge_gt[1]
+            labels_edges = labels_edges.repeat(1,1,2)
+            gt_edges = gt_edges[labels_edges > 0].view(-1, 2)
+
             gt_2d = gt_2d[:, ..., :2]
             gt_2d = gt_2d[labels > 0].view(-1, 2)
             out_2d_0 = out_2d[0][labels > 0].view(-1, 2)
             out_2d_1 = out_2d[1][labels > 0].view(-1, 2)
             out_2d_2 = out_2d[2][:,...,:2][labels > 0].view(-1, 2)
             out_score = out_2d[2][:,...,2][labels[:,...,0]>0]
+
+            edge_2d_0 = edge_2d[0][labels_edges > 0].view(-1, 2)
+            edge_2d_1 = edge_2d[1][labels_edges > 0].view(-1, 2)
+            edge_2d_2 = edge_2d[2][labels_edges > 0].view(-1, 2)
+
             loss_2d_pos_0 = criterion1(out_2d_0, gt_2d)
             loss_2d_pos_1 = criterion1(out_2d_1, gt_2d)
             loss_2d_pos_2 = criterion1(out_2d_2, gt_2d)
+
+            loss_edge_0 = criterion1(edge_2d_0, gt_edges)
+            loss_edge_1 = criterion1(edge_2d_1, gt_edges)
+            loss_edge_2 = criterion1(edge_2d_2, gt_edges)
             # loss_heat_map = criterion1(heat_map_regress[labels>0].view(-1,2), gt_2d)
             loss_score = criterion2(out_2d_2.detach(), gt_2d, out_score)
             loss_2d_pos = 0.3*loss_2d_pos_0+0.5*loss_2d_pos_1+loss_2d_pos_2+ loss_score
-            loss_2d_pos.backward()
+            loss_edge = 0.3*loss_edge_0+0.5*loss_edge_1+loss_edge_2
+
+            loss = loss_2d_pos + loss_edge * 2
+            loss.backward()
 
             if True:
                 nn.utils.clip_grad_norm_(model_pos.parameters(), max_norm=1)
@@ -89,6 +109,8 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
             epoch_loss_2d_pos.update(loss_2d_pos.item(),bz)
             # epoch_loss_heat_map.update(loss_heat_map.item(), bz)
             epoch_loss_score.update(loss_score.item(), bz)
+            epoch_loss_edge.update(loss_edge.item(), bz)
+            epoch_loss.update(loss.item(), bz)
             batch_time.update(time.time() - end)
             end = time.time()
             # add writer dict
@@ -100,10 +122,11 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
 
             if _ % cfg.PRINT_FREQ == 0:
                 bar.suffix = '({batch}/{size}) Data: {data:.6f}s | Batch: {bt:.3f}s | Total: {ttl:} | ETA: {eta:} ' \
-                            '| Loss: {loss: .4f}| loss_score:{score:.4f}| LR:{LR: .6f}' \
+                            '| Loss_kpts: {losskpts: .4f}| loss_score: {score:.4f}| loss_edges: {lossedges:.4f} '\
+                            '| LR: {LR: .6f}| loss: {loss:.4f}' \
                     .format(batch=_ + 1, size=len(train_loader), data=data_time.val, bt=batch_time.avg,
-                            ttl=bar.elapsed_td, eta=bar.eta_td, loss=epoch_loss_2d_pos.avg,
-                            score=epoch_loss_score.avg, LR=lr)
+                            ttl=bar.elapsed_td, eta=bar.eta_td, losskpts=epoch_loss_2d_pos.avg,
+                            score=epoch_loss_score.avg, lossedges=epoch_loss_edge.avg, loss=epoch_loss.avg, LR=lr)
                 bar.next()
         bar.finish()
         mAP,ap = eval_map(pose_generator,model_pos,test_loader,pred_json,best_json=cfg.best_json,target_json=cfg.target_json)

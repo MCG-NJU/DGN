@@ -18,7 +18,7 @@ except ImportError:
     from engineer.SPPE.src.utils.img import transformBox_batch
 
 
-#EDGE only 12 joints and 11 edge
+#EDGE only 12 joints and 12 edge
 alpha_pose_index = ['left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow', 'left_wrist', 'right_wrist',\
  'left_hip', 'right_hip', 'left_knee','right_knee','left_ankle','right_ankle', 'head', 'neck']
 EDGE = ([0,1],[0,2],[2,4],[1,3],[3,5],[0,6],[1,7],[6,7],[6,8],[8,10],[7,9],[9,11])

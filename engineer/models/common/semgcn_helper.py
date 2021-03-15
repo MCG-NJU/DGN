@@ -143,3 +143,66 @@ class SemGraphConv(nn.Module):
 
     def __repr__(self):
         return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'
+
+
+class EdgeAggregate(nn.Module):
+    def __init__(self, input_dim_joint, input_dim_edge, output_dim):
+        super().__init__()
+        self.aggregate_edges = nn.Sequential(
+            nn.Linear(input_dim_edge * 2, output_dim),
+            nn.ReLU(True)
+        )
+        nn.init.normal_(self.aggregate_edges[0].weight, std=0.01)
+        nn.init.constant_(self.aggregate_edges[0].bias, 0)
+        if input_dim_joint > input_dim_edge:
+            self.linear = nn.Linear(input_dim_joint, input_dim_edge)
+            nn.init.normal_(self.linear.weight, std=0.01)
+            nn.init.constant_(self.linear.bias, 0)
+        else:
+            self.linear = None
+
+    def forward(self, gout, eout, sub_matrix):
+        if self.linear is not None:
+            gout = self.linear(gout)
+        edge_input = torch.cat([eout, sub_matrix.matmul(gout)], dim=2)
+        eout = self.aggregate_edges(edge_input)
+
+        return eout
+
+
+class JointAggregate(nn.Module):
+    def __init__(self, input_dim_joint, input_dim_edge, output_dim, num_joints):
+        super().__init__()
+        self.num_joints = num_joints
+        self.aggregate_joints = nn.Sequential(
+            nn.Linear(input_dim_edge+input_dim_joint, output_dim),
+            nn.ReLU(True)
+        )
+        nn.init.normal_(self.aggregate_joints[0].weight, std=0.01)
+        nn.init.constant_(self.aggregate_joints[0].bias, 0)
+        self.aggregate_feats = nn.Linear(input_dim_edge * 3, input_dim_edge)
+        if input_dim_joint > input_dim_edge:
+            self.linear = nn.Linear(input_dim_joint, input_dim_edge)
+            nn.init.normal_(self.linear.weight, std=0.01)
+            nn.init.constant_(self.linear.bias, 0)
+        else:
+            self.linear = None
+
+    def forward(self, gout, eout, start_shift, end_shift, shift):
+        if self.linear is not None:
+            gout_small = self.linear(gout)
+        else:
+            gout_small = gout
+        start_joints_feats = start_shift.matmul(gout_small)
+        joints_plus = start_joints_feats + eout
+        end_joints_feats = end_shift.matmul(gout_small)
+        joints_minus = end_joints_feats - eout
+        joints_aggregates = torch.cat([joints_plus, joints_minus], dim=1)
+
+        joints_input = shift.matmul(joints_aggregates)
+        joints_input = torch.cat([joints_input[:,:self.num_joints], 
+            joints_input[:,self.num_joints:self.num_joints*2], joints_input[:,self.num_joints*2:]],dim=2)
+        joints_input = self.aggregate_feats(joints_input)
+        gout = self.aggregate_joints(torch.cat([gout, joints_input], dim=2))
+
+        return gout
