@@ -27,19 +27,19 @@ class SemGCN_Heatmaps(nn.Module):
         self.num_edges = num_edges
 
         self.register_buffer('sub_matrix', self._build_sub_matrix(adj))
-        # sub_matrix = self._build_sub_matrix(adj)
         self.register_buffer('avg_matrix', self._build_avg_matrix(adj))
         self.register_buffer('shift', self._build_shift_matrix(adj))
+
         ms, me = self._build_joints_shift_matrix(adj)
         self.register_buffer('start_shift', ms)
         self.register_buffer('end_shift', me)
 
+        ev, ve = self._build_ev_ve_matrix()
+        self.register_buffer('ev_shift', ev)
+        self.register_buffer('ve_shift', ve)
+
         self.adj = self._build_adj_mx_from_edges(num_joints, adj)
         self.edge_adj = self._build_adj_mx_from_edges(num_edges, edge_adj)
-        
-        # self.sub_matrix = self._build_sub_matrix(adj)
-        # self.avg_matrix = self._build_avg_matrix(adj)
-        # self.shift = self._build_shift_matrix(adj)
 
         adj = self.adj_matrix
         edge_adj = self.edge_adj_matrix
@@ -52,19 +52,19 @@ class SemGCN_Heatmaps(nn.Module):
         self.gconv_layers1 = _ResGraphConv_Attention(adj, hid_dim[0], hid_dim[1], hid_dim[0], p_dropout=p_dropout)
         self.econv_layers1 = _ResGraphConv_Attention(edge_adj, hid_dim[0], hid_dim[1], hid_dim[0], p_dropout=p_dropout)
 
-        self.aggregate_edges1 = EdgeAggregate(hid_dim[1], hid_dim[1], hid_dim[1])
+        self.aggregate_edges1 = EdgeAggregate(hid_dim[1], hid_dim[1])
         self.aggregate_joints1 = JointAggregate(hid_dim[1], hid_dim[1], hid_dim[1], self.num_joints)
 
         self.gconv_layers2 = _ResGraphConv_Attention(adj, hid_dim[1]+256, hid_dim[2]+256, hid_dim[1]+256, p_dropout=p_dropout)
         self.econv_layers2 = _ResGraphConv_Attention(edge_adj, hid_dim[1], hid_dim[2], hid_dim[1], p_dropout=p_dropout)
 
-        self.aggregate_edges2 = EdgeAggregate(384, hid_dim[2], hid_dim[2])
+        self.aggregate_edges2 = EdgeAggregate(384, hid_dim[2])
         self.aggregate_joints2 = JointAggregate(384, hid_dim[2], hid_dim[2]+256, self.num_joints)
 
         self.gconv_layers3 = _ResGraphConv_Attention(adj, hid_dim[2]+384, hid_dim[3]+384, hid_dim[2]+384, p_dropout=p_dropout)
         self.econv_layers3 = _ResGraphConv_Attention(edge_adj, hid_dim[2], hid_dim[3], hid_dim[2], p_dropout=p_dropout)
 
-        self.aggregate_edges3 = EdgeAggregate(512, hid_dim[3], hid_dim[3])
+        self.aggregate_edges3 = EdgeAggregate(512, hid_dim[3])
         self.aggregate_joints3 = JointAggregate(512, hid_dim[3], hid_dim[3]+384, self.num_joints)
 
         self.gconv_layers4 = _ResGraphConv_Attention(adj, hid_dim[3]+512, hid_dim[4]+512, hid_dim[3]+512, p_dropout=p_dropout)
@@ -141,6 +141,20 @@ class SemGCN_Heatmaps(nn.Module):
         
         return start_joints_shift, end_joints_shift
 
+
+    def _build_ev_ve_matrix(self):
+        ev_shift_idx = [1,2,4,3,5,6,7,7,8,10,9,11]
+        ve_shift_idx = [0,0,2,1,3,0,1,6,6,8,7,9]
+
+        ev_shift_arr = np.zeros((12,12))
+        for idx, vec in zip(ev_shift_idx, ev_shift_arr):
+            vec[idx] = 1
+
+        ve_shift_arr = np.zeros((12,12))
+        for idx, vec in zip(ve_shift_idx, ve_shift_arr):
+            vec[idx] = 1
+
+        return ev_shift_arr, ve_shift_arr
 
 
     def extract_joints_features(self, merged_features, heatmaps):
@@ -254,15 +268,15 @@ class SemGCN_Heatmaps(nn.Module):
         eout = self.econv_input(y)
 
         # aggregation
-        eout1 = self.aggregate_edges(gout, eout, self.sub_matrix)       
-        gout1 = self.aggregate_joints(gout, eout, self.start_shift, self.end_shift, self.shift)
+        eout1 = self.aggregate_edges(gout, eout, self.start_shift, self.end_shift)       
+        gout1 = self.aggregate_joints(gout, eout, self.ev_shift, self.ve_shift)
 
         gout = self.gconv_layers1(gout1, None)
         eout = self.econv_layers1(eout1, None)
 
         # aggregation
-        eout1 = self.aggregate_edges1(gout, eout, self.sub_matrix)
-        gout1 = self.aggregate_joints1(gout, eout, self.start_shift, self.end_shift, self.shift)
+        eout1 = self.aggregate_edges1(gout, eout, self.start_shift, self.end_shift)
+        gout1 = self.aggregate_joints1(gout, eout, self.ev_shift, self.ve_shift)
      
         gout = self.gconv_layers2(gout1, joint_feats[0])
         eout = self.econv_layers2(eout1, None)
@@ -271,8 +285,8 @@ class SemGCN_Heatmaps(nn.Module):
         edges_out1 = self.econv_output1(eout)
         
         # aggregation
-        eout1 = self.aggregate_edges2(gout, eout, self.sub_matrix)
-        gout1 = self.aggregate_joints2(gout, eout, self.start_shift, self.end_shift, self.shift)
+        eout1 = self.aggregate_edges2(gout, eout, self.start_shift, self.end_shift)
+        gout1 = self.aggregate_joints2(gout, eout, self.ev_shift, self.ve_shift)
 
         gout = self.gconv_layers3(gout1, joint_feats[1])
         eout = self.econv_layers3(eout1, None)
@@ -281,8 +295,8 @@ class SemGCN_Heatmaps(nn.Module):
         edges_out2 = self.econv_output2(eout)
 
         # aggregation
-        eout1 = self.aggregate_edges3(gout, eout, self.sub_matrix)
-        gout1 = self.aggregate_joints3(gout, eout, self.start_shift, self.end_shift, self.shift)        
+        eout1 = self.aggregate_edges3(gout, eout, self.start_shift, self.end_shift)
+        gout1 = self.aggregate_joints3(gout, eout, self.ev_shift, self.ve_shift)        
         
         gout = self.gconv_layers4(gout1, joint_feats[2])
         eout = self.econv_layers4(eout1, None)

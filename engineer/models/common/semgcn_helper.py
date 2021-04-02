@@ -146,26 +146,31 @@ class SemGraphConv(nn.Module):
 
 
 class EdgeAggregate(nn.Module):
-    def __init__(self, input_dim_joint, input_dim_edge, output_dim):
+    def __init__(self, input_dim_joint, input_dim_edge):
         super().__init__()
-        self.aggregate_edges = nn.Sequential(
-            nn.Linear(input_dim_edge * 2, output_dim),
-            nn.ReLU(True)
+        self.edges_residual = nn.Sequential(
+            nn.Linear(input_dim_joint*2, input_dim_joint),
+            nn.BatchNorm1d(input_dim_joint),
+            nn.ReLU(True),
+            nn.Linear(input_dim_joint, input_dim_edge),
+            nn.BatchNorm1d(input_dim_edge)
         )
-        nn.init.normal_(self.aggregate_edges[0].weight, std=0.01)
-        nn.init.constant_(self.aggregate_edges[0].bias, 0)
-        if input_dim_joint > input_dim_edge:
-            self.linear = nn.Linear(input_dim_joint, input_dim_edge)
-            nn.init.normal_(self.linear.weight, std=0.01)
-            nn.init.constant_(self.linear.bias, 0)
-        else:
-            self.linear = None
+        self.relu = nn.ReLU(True)
 
-    def forward(self, gout, eout, sub_matrix):
-        if self.linear is not None:
-            gout = self.linear(gout)
-        edge_input = torch.cat([eout, sub_matrix.matmul(gout)], dim=2)
-        eout = self.aggregate_edges(edge_input)
+        for m in self.edges_residual:
+            if isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, std=0.001)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm1d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+    def forward(self, gout, eout, start_shift, end_shift):
+        start_nodes = start_shift.matmul(gout)
+        end_nodes = end_shift.matmul(gout)
+        res = self.edges_residual(torch.cat([start_nodes, end_nodes], dim=2))
+        eout += res
+        eout = self.relu(eout)
 
         return eout
 
@@ -174,35 +179,45 @@ class JointAggregate(nn.Module):
     def __init__(self, input_dim_joint, input_dim_edge, output_dim, num_joints):
         super().__init__()
         self.num_joints = num_joints
-        self.aggregate_joints = nn.Sequential(
-            nn.Linear(input_dim_edge+input_dim_joint, output_dim),
+        input_dim = input_dim_joint + input_dim_edge
+        self.ev_aggregate = nn.Sequential(
+            nn.Linear(input_dim, input_dim_joint),
+            nn.BatchNorm1d(input_dim_joint),
             nn.ReLU(True)
         )
+        self.ve_aggregate = nn.Sequential(
+            nn.Linear(input_dim, input_dim_joint),
+            nn.BatchNorm1d(input_dim_joint),
+            nn.ReLU(True)
+        )
+        self.node_res1 = nn.Sequential(
+            nn.Linear(input_dim_joint*3, input_dim_joint),
+            nn.BatchNorm1d(input_dim_joint)
+        )
+        self.node_res2 = nn.Sequential(
+            nn.Linear(input_dim_joint*3, input_dim_joint),
+            nn.BatchNorm1d(input_dim_joint)
+        )
+        self.node_res3 = nn.Sequential(
+            nn.Linear(input_dim_joint*2, input_dim_joint),
+            nn.BatchNorm1d(input_dim_joint)
+        )
+        self.node_res4 = nn.Sequential(
+            nn.Linear(input_dim_joint*3, input_dim_joint),
+            nn.BatchNorm1d(input_dim_joint)
+        )
+        
         nn.init.normal_(self.aggregate_joints[0].weight, std=0.01)
         nn.init.constant_(self.aggregate_joints[0].bias, 0)
-        self.aggregate_feats = nn.Linear(input_dim_edge * 3, input_dim_edge)
-        if input_dim_joint > input_dim_edge:
-            self.linear = nn.Linear(input_dim_joint, input_dim_edge)
-            nn.init.normal_(self.linear.weight, std=0.01)
-            nn.init.constant_(self.linear.bias, 0)
-        else:
-            self.linear = None
+        
 
-    def forward(self, gout, eout, start_shift, end_shift, shift):
-        if self.linear is not None:
-            gout_small = self.linear(gout)
-        else:
-            gout_small = gout
-        start_joints_feats = start_shift.matmul(gout_small)
-        joints_plus = start_joints_feats + eout
-        end_joints_feats = end_shift.matmul(gout_small)
-        joints_minus = end_joints_feats - eout
-        joints_aggregates = torch.cat([joints_plus, joints_minus], dim=1)
-
-        joints_input = shift.matmul(joints_aggregates)
-        joints_input = torch.cat([joints_input[:,:self.num_joints], 
-            joints_input[:,self.num_joints:self.num_joints*2], joints_input[:,self.num_joints*2:]],dim=2)
-        joints_input = self.aggregate_feats(joints_input)
-        gout = self.aggregate_joints(torch.cat([gout, joints_input], dim=2))
+    def forward(self, gout, eout, ev_shift, ve_shift):
+        ev_gout = ev_shift.matmul(gout)
+        ve_gout = ve_shift.matmul(gout)
+        ev_feats = self.ev_aggregate(torch.cat([eout,ev_gout], dim=2))
+        ve_feats = self.ve_aggregate(torch.cat([ve_gout, eout], dim=2))
+        op1 = torch.cat([ev_feats[:,0],ev_feats[:,1],ev_feats[:,5]],dim=2)
+        print(f"op1.shape is:{op1.shape}")
+        assert 1==2
 
         return gout
