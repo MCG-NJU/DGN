@@ -168,6 +168,7 @@ class EdgeAggregate(nn.Module):
     def forward(self, gout, eout, start_shift, end_shift):
         start_nodes = start_shift.matmul(gout)
         end_nodes = end_shift.matmul(gout)
+
         res = self.edges_residual(torch.cat([start_nodes, end_nodes], dim=2))
         eout += res
         eout = self.relu(eout)
@@ -207,8 +208,8 @@ class JointAggregate(nn.Module):
             nn.BatchNorm1d(input_dim_joint)
         )
         
-        nn.init.normal_(self.aggregate_joints[0].weight, std=0.01)
-        nn.init.constant_(self.aggregate_joints[0].bias, 0)
+        # nn.init.normal_(self.aggregate_joints[0].weight, std=0.01)
+        # nn.init.constant_(self.aggregate_joints[0].bias, 0)
         
 
     def forward(self, gout, eout, ev_shift, ve_shift):

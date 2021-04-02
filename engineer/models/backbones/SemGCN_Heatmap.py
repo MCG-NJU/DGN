@@ -28,13 +28,14 @@ class SemGCN_Heatmaps(nn.Module):
 
         self.register_buffer('sub_matrix', self._build_sub_matrix(adj))
         self.register_buffer('avg_matrix', self._build_avg_matrix(adj))
-        self.register_buffer('shift', self._build_shift_matrix(adj))
+        # self.register_buffer('shift', self._build_shift_matrix(adj))
 
         ms, me = self._build_joints_shift_matrix(adj)
         self.register_buffer('start_shift', ms)
         self.register_buffer('end_shift', me)
 
         ev, ve = self._build_ev_ve_matrix()
+        ev, ve = torch.tensor(ev), torch.tensor(ve)
         self.register_buffer('ev_shift', ev)
         self.register_buffer('ve_shift', ve)
 
@@ -46,7 +47,7 @@ class SemGCN_Heatmaps(nn.Module):
 
         self.gconv_input = _GraphConv(adj, coords_dim[0], hid_dim[0], p_dropout=p_dropout)
         self.econv_input = _GraphConv(edge_adj, coords_dim[0], hid_dim[0], p_dropout=p_dropout)
-        self.aggregate_edges = EdgeAggregate(hid_dim[0], hid_dim[0], hid_dim[0])
+        self.aggregate_edges = EdgeAggregate(hid_dim[0], hid_dim[0])
         self.aggregate_joints = JointAggregate(hid_dim[0], hid_dim[0], hid_dim[0], self.num_joints)
         # in here we set 4 gcn model in this part
         self.gconv_layers1 = _ResGraphConv_Attention(adj, hid_dim[0], hid_dim[1], hid_dim[0], p_dropout=p_dropout)
