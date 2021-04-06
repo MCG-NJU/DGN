@@ -3,6 +3,13 @@ import torch.nn as nn
 import math
 import torch.nn.functional as F
 
+
+def conv1x1(in_planes, out_planes, stride=1):
+    """1x1 convolution with padding"""
+    return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
+                     padding=0, bias=False)
+
+
 class _GraphConv(nn.Module):
     def __init__(self, adj, input_dim, output_dim, p_dropout=None):
         super(_GraphConv, self).__init__()
@@ -26,6 +33,7 @@ class _GraphConv(nn.Module):
 
         x = self.relu(x)
         return x
+
 
 class _GraphConv_no_bn(nn.Module):
     def __init__(self, adj, input_dim, output_dim, p_dropout=None):
@@ -149,19 +157,20 @@ class EdgeAggregate(nn.Module):
     def __init__(self, input_dim_joint, input_dim_edge):
         super().__init__()
         self.edges_residual = nn.Sequential(
-            nn.Linear(input_dim_joint*2, input_dim_joint),
-            nn.BatchNorm1d(input_dim_joint),
+            conv1x1(input_dim_joint*2, input_dim_joint),
+            nn.BatchNorm2d(input_dim_joint),
             nn.ReLU(True),
-            nn.Linear(input_dim_joint, input_dim_edge),
-            nn.BatchNorm1d(input_dim_edge)
+            conv1x1(input_dim_joint, input_dim_edge),
+            nn.BatchNorm2d(input_dim_edge)
         )
         self.relu = nn.ReLU(True)
 
         for m in self.edges_residual:
-            if isinstance(m, nn.Linear):
+            if isinstance(m, nn.Conv2d):
                 nn.init.normal_(m.weight, std=0.001)
-                nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.BatchNorm1d):
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
@@ -169,9 +178,8 @@ class EdgeAggregate(nn.Module):
         start_nodes = start_shift.matmul(gout)
         end_nodes = end_shift.matmul(gout)
 
-        res = self.edges_residual(torch.cat([start_nodes, end_nodes], dim=2))
-        eout += res
-        eout = self.relu(eout)
+        res = self.edges_residual(torch.cat([start_nodes, end_nodes], dim=2).transpose_(1,2).contiguous().unsqueeze_(dim=-1))
+        eout = self.relu(res.squeeze_().transpose_(1,2).contiguous() + eout)
 
         return eout
 
@@ -181,44 +189,90 @@ class JointAggregate(nn.Module):
         super().__init__()
         self.num_joints = num_joints
         input_dim = input_dim_joint + input_dim_edge
+        self.register_buffer('shift', self._build_v_shift_matrix())
         self.ev_aggregate = nn.Sequential(
-            nn.Linear(input_dim, input_dim_joint),
-            nn.BatchNorm1d(input_dim_joint),
+            conv1x1(input_dim, input_dim_joint),
+            nn.BatchNorm2d(input_dim_joint),
             nn.ReLU(True)
         )
         self.ve_aggregate = nn.Sequential(
-            nn.Linear(input_dim, input_dim_joint),
-            nn.BatchNorm1d(input_dim_joint),
+            conv1x1(input_dim, input_dim_joint),
+            nn.BatchNorm2d(input_dim_joint),
             nn.ReLU(True)
         )
         self.node_res1 = nn.Sequential(
-            nn.Linear(input_dim_joint*3, input_dim_joint),
-            nn.BatchNorm1d(input_dim_joint)
+            conv1x1(input_dim_joint*3, input_dim_joint),
+            nn.BatchNorm2d(input_dim_joint)
         )
         self.node_res2 = nn.Sequential(
-            nn.Linear(input_dim_joint*3, input_dim_joint),
-            nn.BatchNorm1d(input_dim_joint)
+            conv1x1(input_dim_joint*3, input_dim_joint),
+            nn.BatchNorm2d(input_dim_joint)
         )
         self.node_res3 = nn.Sequential(
-            nn.Linear(input_dim_joint*2, input_dim_joint),
-            nn.BatchNorm1d(input_dim_joint)
+            conv1x1(input_dim_joint*2, input_dim_joint),
+            nn.BatchNorm2d(input_dim_joint)
         )
         self.node_res4 = nn.Sequential(
-            nn.Linear(input_dim_joint*3, input_dim_joint),
-            nn.BatchNorm1d(input_dim_joint)
+            conv1x1(input_dim_joint*3, input_dim_joint),
+            nn.BatchNorm2d(input_dim_joint)
         )
+        self.relu = nn.ReLU(True)
+
+        self.init_weights()
         
         # nn.init.normal_(self.aggregate_joints[0].weight, std=0.01)
         # nn.init.constant_(self.aggregate_joints[0].bias, 0)
+
+
+    def _build_v_shift_matrix(self):
+        v_shift_idx = torch.tensor([0,1,6,2,3,8,9,7,4,5,10,11])
+        
+        v_shift_arr = torch.zeros((12,12))
+        for idx, vec in zip(v_shift_idx, v_shift_arr):
+            vec[idx] = 1.0        
+
+        return torch.inverse(v_shift_arr)
+
+    
+    def init_weights(self):
+        print("=> init JointsAggregation weights...")
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.normal_(m.weight, std=0.001)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
         
 
     def forward(self, gout, eout, ev_shift, ve_shift):
         ev_gout = ev_shift.matmul(gout)
         ve_gout = ve_shift.matmul(gout)
-        ev_feats = self.ev_aggregate(torch.cat([eout,ev_gout], dim=2))
-        ve_feats = self.ve_aggregate(torch.cat([ve_gout, eout], dim=2))
-        op1 = torch.cat([ev_feats[:,0],ev_feats[:,1],ev_feats[:,5]],dim=2)
-        print(f"op1.shape is:{op1.shape}")
-        assert 1==2
+        ev_feats = self.ev_aggregate(torch.cat([eout,ev_gout], dim=2).transpose_(1,2).contiguous().unsqueeze_(dim=-1))
+        ve_feats = self.ve_aggregate(torch.cat([ve_gout, eout], dim=2).transpose_(1,2).contiguous().unsqueeze_(dim=-1))
 
-        return gout
+        op1 = torch.cat([ev_feats[:,:,0],ev_feats[:,:,1],ev_feats[:,:,5]],dim=1).unsqueeze_(dim=-2)
+        op1 = self.node_res1(op1)
+        
+        op21 = torch.cat([ve_feats[:,:,0],ev_feats[:,:,3],ev_feats[:,:,7]],dim=1)
+        op22 = torch.cat([ve_feats[:,:,5],ev_feats[:,:,7],ev_feats[:,:,8]],dim=1)
+        op2 = torch.stack([op21,op22],dim=2)
+        op2 = self.node_res2(op2)
+        
+        op31 = torch.cat([ve_feats[:,:,1],ev_feats[:,:,2]],dim=1)
+        op32 = torch.cat([ve_feats[:,:,3],ev_feats[:,:,4]],dim=1)
+        op33 = torch.cat([ve_feats[:,:,8],ev_feats[:,:,9]],dim=1)
+        op34 = torch.cat([ve_feats[:,:,10],ev_feats[:,:,11]],dim=1)
+        op3 = torch.stack([op31,op32,op33,op34],dim=2)
+        op3 = self.node_res3(op3)
+
+        op4 = torch.cat([ve_feats[:,:,6],ve_feats[:,:,7],ev_feats[:,:,10]],dim=1).unsqueeze_(dim=-2)
+        op4 = self.node_res4(op4)
+
+        op5 = torch.stack([ve_feats[:,:,2],ve_feats[:,:,4],ve_feats[:,:,9],ve_feats[:,:,11]],dim=2)
+
+        res = torch.cat([op1,op2,op3,op4,op5],dim=-2).squeeze_().transpose_(1,2).contiguous()
+        res = self.shift.matmul(res)
+
+        return self.relu(gout+res)

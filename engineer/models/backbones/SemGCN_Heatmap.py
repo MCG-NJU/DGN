@@ -35,7 +35,7 @@ class SemGCN_Heatmaps(nn.Module):
         self.register_buffer('end_shift', me)
 
         ev, ve = self._build_ev_ve_matrix()
-        ev, ve = torch.tensor(ev), torch.tensor(ve)
+        ev, ve = torch.tensor(ev, dtype=torch.float), torch.tensor(ve, dtype=torch.float)
         self.register_buffer('ev_shift', ev)
         self.register_buffer('ve_shift', ve)
 

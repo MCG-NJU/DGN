@@ -1,5 +1,5 @@
 import numpy as np
-GPUS = (0,1,2)
+GPUS = (0,1,2,3)
 model = dict(
     type='SemGCN_Heatmaps',
     adj = ([0,1],[0,2],[2,4],[1,3],[3,5],[0,6],[1,7],[6,7],[6,8],[8,10],[7,9],[9,11]),
