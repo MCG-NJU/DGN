@@ -58,7 +58,7 @@ optim_para=dict(
 )
 
 # log path
-log_path = "CrowdPose_heatmaps_dynamicGCN_aggregate/"
+log_path = "CrowdPose_HM_dGCN_NetResidualAggregate_noScureInput_bothScoreSupervised/"
 # print frequent
 PRINT_FREQ = 100
 

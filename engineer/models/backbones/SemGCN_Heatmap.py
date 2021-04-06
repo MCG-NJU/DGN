@@ -45,8 +45,8 @@ class SemGCN_Heatmaps(nn.Module):
         adj = self.adj_matrix
         edge_adj = self.edge_adj_matrix
 
-        self.gconv_input = _GraphConv(adj, coords_dim[0], hid_dim[0], p_dropout=p_dropout)
-        self.econv_input = _GraphConv(edge_adj, coords_dim[0], hid_dim[0], p_dropout=p_dropout)
+        self.gconv_input = _GraphConv(adj, coords_dim[1], hid_dim[0], p_dropout=p_dropout)
+        self.econv_input = _GraphConv(edge_adj, coords_dim[1], hid_dim[0], p_dropout=p_dropout)
         self.aggregate_edges = EdgeAggregate(hid_dim[0], hid_dim[0])
         self.aggregate_joints = JointAggregate(hid_dim[0], hid_dim[0], hid_dim[0], self.num_joints)
         # in here we set 4 gcn model in this part
@@ -76,7 +76,7 @@ class SemGCN_Heatmaps(nn.Module):
         self.gconv_output2 = SemGraphConv(512, coords_dim[1], adj)
         self.econv_output2 = SemGraphConv(hid_dim[3], coords_dim[1], edge_adj)
         self.gconv_output3 = SemGraphConv(640, coords_dim[0], adj)
-        self.econv_output3 = SemGraphConv(hid_dim[4], coords_dim[1], edge_adj)
+        self.econv_output3 = SemGraphConv(hid_dim[4], coords_dim[0], edge_adj)
 
 
     def _build_shift_matrix(self, adj):
@@ -173,6 +173,8 @@ class SemGCN_Heatmaps(nn.Module):
             joint_feats_list = []
             for joint_idx in range(5, self.num_joints+5):
                 hm_i = hm_s[:, joint_idx].unsqueeze(1) #.repeat(1,C,1,1)
+                max_result = torch.max(hm_i.view(B,1,-1),dim=2)
+                hm_i = hm_i / max_result.values.view(B,1,1,1)
                 features_i = features * hm_i
                 feature_vector_i = F.adaptive_avg_pool2d(features_i, 1) + F.adaptive_max_pool2d(features_i, 1)
                 feature_vector_i.squeeze_()
@@ -262,11 +264,11 @@ class SemGCN_Heatmaps(nn.Module):
 
         # compute detected edges
         y_coords = self.sub_matrix.matmul(x[:,:,:2])
-        y_score = self.avg_matrix.matmul(x[:,:,2].unsqueeze(dim=2))
-        y = torch.cat([y_coords, y_score], dim=2)
+        # y_score = self.avg_matrix.matmul(x[:,:,2].unsqueeze(dim=2))
+        # y = torch.cat([y_coords, y_score], dim=2)
         
-        gout = self.gconv_input(x)
-        eout = self.econv_input(y)
+        gout = self.gconv_input(x[:,...,:2])
+        eout = self.econv_input(y_coords)
 
         # aggregation
         eout1 = self.aggregate_edges(gout, eout, self.start_shift, self.end_shift)       

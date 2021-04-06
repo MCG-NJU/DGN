@@ -86,7 +86,8 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
 
             edge_2d_0 = edge_2d[0][labels_edges > 0].view(-1, 2)
             edge_2d_1 = edge_2d[1][labels_edges > 0].view(-1, 2)
-            edge_2d_2 = edge_2d[2][labels_edges > 0].view(-1, 2)
+            edge_2d_2 = edge_2d[2][:,...,:2][labels_edges > 0].view(-1, 2)
+            edge_score = edge_2d[2][:,...,2][labels_edges[:,...,0]>0]
 
             loss_2d_pos_0 = criterion1(out_2d_0, gt_2d)
             loss_2d_pos_1 = criterion1(out_2d_1, gt_2d)
@@ -97,10 +98,11 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
             loss_edge_2 = criterion1(edge_2d_2, gt_edges)
             # loss_heat_map = criterion1(heat_map_regress[labels>0].view(-1,2), gt_2d)
             loss_score = criterion2(out_2d_2.detach(), gt_2d, out_score)
+            loss_edge_score = criterion2(edge_2d_2.detach(), gt_edges, edge_score)
             loss_2d_pos = 0.3*loss_2d_pos_0+0.5*loss_2d_pos_1+loss_2d_pos_2+ loss_score
-            loss_edge = 0.3*loss_edge_0+0.5*loss_edge_1+loss_edge_2
+            loss_edge = 0.3*loss_edge_0+0.5*loss_edge_1+loss_edge_2+loss_edge_score
 
-            loss = loss_2d_pos + loss_edge * 2
+            loss = loss_2d_pos + loss_edge
             loss.backward()
 
             if True:
