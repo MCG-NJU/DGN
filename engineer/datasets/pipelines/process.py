@@ -30,7 +30,6 @@ class crop_large(object):
             results['pt1'] =None
             results['pt2'] = None
         else:
-
             inp = self.im_to_torch(cv2.cvtColor(orig_img, cv2.COLOR_BGR2RGB))
             inps, pt1, pt2 = self._crop_from_dets_train_single(inp, boxes, inps, pt1, pt2)
             results['inps'] = inps

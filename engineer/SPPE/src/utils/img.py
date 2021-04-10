@@ -197,7 +197,7 @@ def transformBox_batch(pt_, ul, br, inpH, inpW, resH, resW):
 
     _pt = torch.zeros(pt.shape)
 
-
+ 
     pt = torch.from_numpy(pt).float()
     _pt[:,:,0] = pt[:,:,0] -ul[:, 0].unsqueeze(-1).repeat(1, num_joints)
     _pt[:,:,1] = pt[:,:,1]-ul[:, 1].unsqueeze(-1).repeat(1, num_joints)

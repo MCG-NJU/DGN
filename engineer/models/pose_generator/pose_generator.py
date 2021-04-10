@@ -102,6 +102,14 @@ class Pose_Generator():
             dts[bz, :, :2] = self.inverse_normalize(dts[bz, :, :2], w, h)
         dts[:, :, 0] = dts[:, :, 0] + pt1[:, 0].unsqueeze(-1).repeat(1, num_joints).numpy()
         dts[:, :, 1] = dts[:, :, 1] + pt1[:, 1].unsqueeze(-1).repeat(1, num_joints).numpy()
+    
+    def inverse_normalize_edges(self,edges,pt1,pt2):
+        for bz in range(edges.shape[0]):
+            x0,y0 = pt1[bz].numpy().tolist()
+            x1,y1 = pt2[bz].numpy().tolist()
+            w,h = x1-x0,y1-y0
+            edges[bz,:,0] *= float(w)
+            edges[bz,:,1] *= float(h)
 
 
     def normalize(self,dts,gts,pt1,pt2):
@@ -121,6 +129,8 @@ class Pose_Generator():
             w,h = x1-x0,y1-y0
             dts[bz,:,:2] = self.normalize_screen_coordinates(dts[bz,:,:2],w,h)
             gts[bz,:,:2] = self.normalize_screen_coordinates(gts[bz,:,:2],w,h)
+
+    
     def normalize_screen_coordinates(self,X,w,h):
         assert X.shape[-1] == 2
         # Normalize so that [0, w] is mapped to [-1, 1], while preserving the aspect ratio
@@ -137,6 +147,8 @@ class Pose_Generator():
         Y[:,0] = Y[:,0]*float(w)
         Y[:,1] = Y[:,1]*float(h)
         return Y
+
+    
     def hm_normalize(self,x,h,w):
         x[:,:,0] /=w
         x[:,:,1] /=h

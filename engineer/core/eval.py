@@ -223,6 +223,7 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
     for batches in tqdm(test_dataloader):
         cnt+=1
         inps,orig_img,img_name,boxes,scores,pt1,pt2,gts,dts,item = batches
+        
 
         best_pose_match =[]
         for name,box in zip(img_name,boxes):
@@ -241,18 +242,19 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
 
 
         dts, hm_4,ret_features, heatmaps = alpha_pose_generator(inps, orig_img, img_name, boxes, scores,pt1, pt2, gts, dts)
-
         dts = dts.cuda()
         hm_4 = hm_4.cuda()
         with torch.no_grad():
-            out_2d = model_pose(dts,heatmaps,ret_features)
+            out_2d, edges_out = model_pose(dts,heatmaps,ret_features)
             out_2d = out_2d[2].cpu().detach().numpy()
+            edges_out = edges_out.cpu().detach().numpy()
             labels = dts[:,...,2:].repeat(1,1,3).cpu().detach().numpy()
             dts = dts.cpu().detach().numpy()
             # inter_gral_x = inter_gral_x.cpu().detach().numpy()
             scores = dts[:,...,2:]
             alpha_pose_generator.inverse_normalize_only(out_2d,pt1,pt2)
             alpha_pose_generator.inverse_normalize_only(dts, pt1, pt2)
+            alpha_pose_generator.inverse_normalize_edges(edges_out,pt1,pt2)
             # alpha_pose_generator.inverse_normalize_only(inter_gral_x[...,:2], pt1, pt2)
             dts_003 = dts.copy()
             adj_joints = np.concatenate([out_2d[:,...,:2],scores],axis=-1)
@@ -265,6 +267,7 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
                     id2keypoints[name][ind] = dts_003[bz,...].reshape(-1).tolist()
                 json_file_ori[index]['keypoints'] = out_2d[bz,...].reshape(-1).tolist()
                 json_file_0_03[index]['keypoints'] = dts_003[bz,...].reshape(-1).tolist()
+                json_file_ori[index]['edges'] = edges_out[bz,...].reshape(-1).tolist()
     new_best_match =[]
     for key,keypoints in id2keypoints.items():
         for keypoint,box,sco,cat in zip(keypoints,id2bbox[key],id2scores[key],id2cat[key]):
@@ -282,4 +285,4 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
     reference_map,_,_ = eval_results(json_file_0_03,target_json)
 
     ap003,_,_ = eval_results(json_file_ori,target_json)
-    return ap003,reference_map
+    return ap003,reference_map,json_file_ori

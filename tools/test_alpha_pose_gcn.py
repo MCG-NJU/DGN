@@ -18,6 +18,7 @@ from engineer.datasets.builder import build_dataset
 from engineer.models.builder import build_generator,build_backbone
 from engineer.core.eval import eval_map
 import os
+import json
 
 
 
@@ -61,9 +62,13 @@ if __name__ == "__main__":
 
     # Init data writer
 
-    mAP, ap = eval_map(pose_generator, model_pos, test_loader, cfg.pred_json, best_json=cfg.best_json,
+    mAP, ap, result = eval_map(pose_generator, model_pos, test_loader, cfg.pred_json, best_json=cfg.best_json,
                        target_json=cfg.target_json)
 
     print(mAP,ap)
+
+    save_path = os.path.join(cfg.checkpoints, cfg.log_path, "crowdpose_keypoints_results.json")
+    with open(save_path,'w') as out:
+        json.dump(result, out)
 nn.L1Loss()
 

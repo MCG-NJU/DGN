@@ -318,7 +318,7 @@ class SemGCN_Heatmaps(nn.Module):
 
             return [joints_out1, joints_out2, joints_out3], [edges_out1, edges_out2, edges_out3], [gt_edges, edge_labels]
         else:
-            return [joints_out1, joints_out2, joints_out3]
+            return [joints_out1, joints_out2, joints_out3], edges_out3
 
 
     
