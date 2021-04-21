@@ -63,7 +63,7 @@ if __name__ == "__main__":
     # Init data writer
 
     mAP, ap, result = eval_map(pose_generator, model_pos, test_loader, cfg.pred_json, best_json=cfg.best_json,
-                       target_json=cfg.target_json)
+                       target_json=cfg.target_json, flip_test=True)
 
     print(mAP,ap)
 

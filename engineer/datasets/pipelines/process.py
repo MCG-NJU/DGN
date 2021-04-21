@@ -10,7 +10,7 @@ class crop_large(object):
         super(crop_large,self).__init__()
         self.RGB = RGB
         self.resH,self.resW = inputResH, inputResW
-    def __call__(self,results):
+    def __call__(self, results):
         '''
 
         :param results:

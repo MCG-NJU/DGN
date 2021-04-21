@@ -194,7 +194,7 @@ def compare_vis(pred,ori):
             cv2.imwrite(os.path.join("vis_crowd","{}_{}.jpg".format(key.replace(".jpg",""),pred_sum-ori_sum)),new_img)
 
 
-def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json,target_json):
+def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json,target_json,flip_test=False):
 
     id2bbox =defaultdict(list)
     id2keypoints = defaultdict(list)
@@ -222,28 +222,37 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
     cnt = 1
     for batches in tqdm(test_dataloader):
         cnt+=1
-        inps,orig_img,img_name,boxes,scores,pt1,pt2,gts,dts,item = batches
+        inps,img_name,boxes,scores,pt1,pt2,gts,dts,item = batches
+
+        # best_pose_match =[]
+        # for name,box in zip(img_name,boxes):
+        #     best_box = id2bbox[name]
+        #     best_box = np.asarray(best_box)
+        #     box = box.cpu().numpy()
+        #     ious = []
+        #     for b_box in best_box:
+        #         ious.append(compute_iou(b_box,box))
+        #     ious = np.asarray(ious)
+        #     ind = np.argmax(ious)
+        #     if ious[ind]>0.9:
+        #         best_pose_match.append(ind)
+        #     else:
+        #         best_pose_match.append(None)
+
+        dts_norm, ret_features, heatmaps = alpha_pose_generator(inps, boxes, pt1, pt2, gts, dts)
         
 
-        best_pose_match =[]
-        for name,box in zip(img_name,boxes):
-            best_box = id2bbox[name]
-            best_box = np.asarray(best_box)
-            box = box.cpu().numpy()
-            ious = []
-            for b_box in best_box:
-                ious.append(compute_iou(b_box,box))
-            ious = np.asarray(ious)
-            ind = np.argmax(ious)
-            if ious[ind]>0.9:
-                best_pose_match.append(ind)
-            else:
-                best_pose_match.append(None)
+        # flip test
+        if flip_test:
+            # this part is ugly, because pytorch has not supported negative steps
+            # input_flipped = model(input[:, :, :, ::-1])
+            inps_flipped = np.flip(inps.cpu().numpy(), 3).copy()
+            inps_flipped = torch.from_numpy(inps_flipped).cuda()
+            dts_flipped, ret_features_flipped, heatmaps_flipped = alpha_pose_generator(inps_flipped,
+                boxes,pt1,pt2,gts,dts,flip_test)
+            dts_flipped = dts_flipped.cuda()
+        dts = dts_norm.cuda()
 
-
-        dts, hm_4,ret_features, heatmaps = alpha_pose_generator(inps, orig_img, img_name, boxes, scores,pt1, pt2, gts, dts)
-        dts = dts.cuda()
-        hm_4 = hm_4.cuda()
         with torch.no_grad():
             out_2d, edges_out = model_pose(dts,heatmaps,ret_features)
             out_2d = out_2d[2].cpu().detach().numpy()
@@ -256,28 +265,39 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
             alpha_pose_generator.inverse_normalize_only(dts, pt1, pt2)
             alpha_pose_generator.inverse_normalize_edges(edges_out,pt1,pt2)
             # alpha_pose_generator.inverse_normalize_only(inter_gral_x[...,:2], pt1, pt2)
+
+            if flip_test:
+                out_2d_flipped, edges_out_flipped = model_pose(dts_flipped, heatmaps_flipped, ret_features_flipped)
+                out_2d_flipped = out_2d_flipped[2].cpu().detach().numpy()
+                edges_out_flipped = edges_out_flipped.cpu().detach().numpy()
+                alpha_pose_generator.inverse_normalize_only(out_2d_flipped,pt1,pt2,flip=True)
+                alpha_pose_generator.inverse_normalize_edges(edges_out_flipped,pt1,pt2)
+                
+                out_2d = (out_2d + out_2d_flipped) / 2.0
+                edges_out = (edges_out + edges_out_flipped) / 2.0
+
             dts_003 = dts.copy()
             adj_joints = np.concatenate([out_2d[:,...,:2],scores],axis=-1)
             dts_003[labels<0.2] = adj_joints[labels<0.2]
             for bz in range(dts_003.shape[0]):
                 index = item[bz]
                 name = img_name[bz]
-                ind = best_pose_match[bz]
-                if ind is not None:
-                    id2keypoints[name][ind] = dts_003[bz,...].reshape(-1).tolist()
+                # ind = best_pose_match[bz]
+                # if ind is not None:
+                #     id2keypoints[name][ind] = dts_003[bz,...].reshape(-1).tolist()
                 json_file_ori[index]['keypoints'] = out_2d[bz,...].reshape(-1).tolist()
                 json_file_0_03[index]['keypoints'] = dts_003[bz,...].reshape(-1).tolist()
                 json_file_ori[index]['edges'] = edges_out[bz,...].reshape(-1).tolist()
-    new_best_match =[]
-    for key,keypoints in id2keypoints.items():
-        for keypoint,box,sco,cat in zip(keypoints,id2bbox[key],id2scores[key],id2cat[key]):
-            ele = {}
-            ele['keypoints'] = keypoint
-            ele['bbox'] = box
-            ele['score'] = sco
-            ele['image_id'] = key
-            ele['category_id'] = cat
-            new_best_match.append(ele)
+    # new_best_match =[]
+    # for key,keypoints in id2keypoints.items():
+    #     for keypoint,box,sco,cat in zip(keypoints,id2bbox[key],id2scores[key],id2cat[key]):
+    #         ele = {}
+    #         ele['keypoints'] = keypoint
+    #         ele['bbox'] = box
+    #         ele['score'] = sco
+    #         ele['image_id'] = key
+    #         ele['category_id'] = cat
+    #         new_best_match.append(ele)
 
 
 

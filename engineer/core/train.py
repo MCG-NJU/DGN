@@ -131,7 +131,7 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
                             score=epoch_loss_score.avg, lossedges=epoch_loss_edge.avg, loss=epoch_loss.avg, LR=lr)
                 bar.next()
         bar.finish()
-        mAP,ap = eval_map(pose_generator,model_pos,test_loader,pred_json,best_json=cfg.best_json,target_json=cfg.target_json)
+        mAP,ap = eval_map(pose_generator,model_pos,test_loader,pred_json,best_json=cfg.best_json,target_json=cfg.target_json,flip_test=False)
         writer_map.write("{}\t{}\t{}\n".format(epoch,mAP,ap))
         writer_map.flush()
         valid_step = writer_dict['valid_step']

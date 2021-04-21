@@ -179,7 +179,8 @@ class EdgeAggregate(nn.Module):
         end_nodes = end_shift.matmul(gout)
 
         res = self.edges_residual(torch.cat([start_nodes, end_nodes], dim=2).transpose_(1,2).contiguous().unsqueeze_(dim=-1))
-        eout = self.relu(res.squeeze_().transpose_(1,2).contiguous() + eout)
+        assert res.shape[0] > 1, "bachsize need lager than 1 to be squeezed"
+        eout = self.relu(res.squeeze().transpose(1,2).contiguous() + eout)
 
         return eout
 

@@ -6,7 +6,7 @@
 import torch
 def train_loader_collate_fn(batches):
     inps_list = []
-    orig_img_list= []
+    # orig_img_list= []
     img_name_list= []
     boxes_list= []
     scores_list= []
@@ -17,7 +17,7 @@ def train_loader_collate_fn(batches):
     for i in range(len(batches)):
         result = batches[i]
         inps = result['inps']
-        orig_img = result['orig_img']
+        # orig_img = result['orig_img']
         img_name = result['im_name']
         boxes = result['boxes']
         scores = result['scores']
@@ -27,7 +27,7 @@ def train_loader_collate_fn(batches):
         dts = result['dts']
 
         inps_list.append(inps)
-        orig_img_list.append(orig_img)
+        # orig_img_list.append(orig_img)
         img_name_list.append(img_name)
         boxes_list.append(boxes)
         scores_list.append(scores)
@@ -41,12 +41,12 @@ def train_loader_collate_fn(batches):
     pt1 = torch.cat(pt1_list,dim=0)
     pt2 = torch.cat(pt2_list,dim=0)
 
-    return inps,orig_img_list,img_name_list,boxes,scores,pt1,pt2,gts_list,dts_list
+    return inps,img_name_list,boxes,scores,pt1,pt2,gts_list,dts_list
 
 # One method to use in eval progress
 def test_loader_collate_fn(batches):
     inps_list = []
-    orig_img_list= []
+    # orig_img_list= []
     img_name_list= []
     boxes_list= []
     scores_list= []
@@ -57,7 +57,7 @@ def test_loader_collate_fn(batches):
     for i in range(len(batches)):
         result = batches[i]
         inps = result['inps']
-        orig_img = result['orig_img']
+        # orig_img = result['orig_img']
         img_name = result['im_name']
         boxes = result['boxes']
         scores = result['scores']
@@ -67,7 +67,7 @@ def test_loader_collate_fn(batches):
         dts = result['dts']
         item = result['item']
         inps_list.append(inps)
-        orig_img_list.append(orig_img)
+        # orig_img_list.append(orig_img)
         img_name_list.append(img_name)
         boxes_list.append(boxes)
         scores_list.append(scores)
@@ -80,4 +80,4 @@ def test_loader_collate_fn(batches):
     scores = torch.cat(scores_list,dim=0)
     pt1 = torch.cat(pt1_list,dim=0)
     pt2 = torch.cat(pt2_list,dim=0)
-    return inps,orig_img_list,img_name_list,boxes,scores,pt1,pt2,None,dts_list,item_list
+    return inps,img_name_list,boxes,scores,pt1,pt2,None,dts_list,item_list
