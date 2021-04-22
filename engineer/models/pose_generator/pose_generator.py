@@ -56,7 +56,7 @@ class Pose_Generator():
             pre_keypoints = dts_epoch[:, ..., :2]
             hm_1_4 = transformBox_batch(pre_keypoints, pt1, pt2, self.inputResH, self.inputResW, self.outputResH,
                                         self.outputResW)
-            self.hm_normalize(hm_1_4,h_4,w_4)
+            # self.hm_normalize(hm_1_4,h_4,w_4)
             self.normalize(dts_epoch,gts_epoch,pt1,pt2)
             dts = torch.from_numpy(dts_epoch).float()
             gts = torch.from_numpy(gts_epoch).float()

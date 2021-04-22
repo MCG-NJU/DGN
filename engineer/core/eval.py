@@ -270,8 +270,8 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
                 out_2d_flipped, edges_out_flipped = model_pose(dts_flipped, heatmaps_flipped, ret_features_flipped)
                 out_2d_flipped = out_2d_flipped[2].cpu().detach().numpy()
                 edges_out_flipped = edges_out_flipped.cpu().detach().numpy()
-                alpha_pose_generator.inverse_normalize_only(out_2d_flipped,pt1,pt2,flip=True)
-                alpha_pose_generator.inverse_normalize_edges(edges_out_flipped,pt1,pt2)
+                alpha_pose_generator.inverse_normalize_only(out_2d_flipped,pt1,pt2,flip=flip_test)
+                alpha_pose_generator.inverse_normalize_edges(edges_out_flipped,pt1,pt2,flip=flip_test)
                 
                 out_2d = (out_2d + out_2d_flipped) / 2.0
                 edges_out = (edges_out + edges_out_flipped) / 2.0
