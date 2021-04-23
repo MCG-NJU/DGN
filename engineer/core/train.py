@@ -49,7 +49,7 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
         for _,batches in enumerate(train_loader):
             inps, orig_img_list, img_name_list, boxes, scores, pt1, pt2, gts_list, dts_list = batches
             if pose_generator is not None:
-                dts,gt_2d,hm_4,ret_features,heatmaps = pose_generator(inps,orig_img_list,img_name_list,boxes,scores,pt1,pt2,gts_list,dts_list)
+                dts,gt_2d,ret_features,heatmaps = pose_generator(inps,orig_img_list,img_name_list,boxes,scores,pt1,pt2,gts_list,dts_list)
                 dts = dts.cuda()
                 gt_2d = gt_2d.cuda()
                 # hm_4 = hm_4.cuda()

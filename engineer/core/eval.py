@@ -244,10 +244,9 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
 
         # flip test
         if flip_test:
-            # this part is ugly, because pytorch has not supported negative steps
-            # input_flipped = model(input[:, :, :, ::-1])
-            inps_flipped = np.flip(inps.cpu().numpy(), 3).copy()
-            inps_flipped = torch.from_numpy(inps_flipped).cuda()
+            assert inps.dim() >=3
+            dims = inps.dim -1
+            inps_flipped = inps.flip((dims,)) # flip is easy, at least not as hard as hrnet showed.
             dts_flipped, ret_features_flipped, heatmaps_flipped = alpha_pose_generator(inps_flipped,
                 boxes,pt1,pt2,gts,dts,flip_test)
             dts_flipped = dts_flipped.cuda()

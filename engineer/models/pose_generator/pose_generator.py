@@ -53,15 +53,15 @@ class Pose_Generator():
             dts_epoch = np.concatenate(dts_epoch,axis=0).copy()
 
             # extract_feature_from_here
-            pre_keypoints = dts_epoch[:, ..., :2]
-            hm_1_4 = transformBox_batch(pre_keypoints, pt1, pt2, self.inputResH, self.inputResW, self.outputResH,
-                                        self.outputResW)
+            # pre_keypoints = dts_epoch[:, ..., :2]
+            # hm_1_4 = transformBox_batch(pre_keypoints, pt1, pt2, self.inputResH, self.inputResW, self.outputResH,
+            #                             self.outputResW)
             # self.hm_normalize(hm_1_4,h_4,w_4)
             self.normalize(dts_epoch,gts_epoch,pt1,pt2)
             dts = torch.from_numpy(dts_epoch).float()
             gts = torch.from_numpy(gts_epoch).float()
 
-            return dts,gts,hm_1_4,ret_features,hm
+            return dts,gts,ret_features,hm
 
 
     def extract_features_joints(self,ret_features,hms):
@@ -81,11 +81,9 @@ class Pose_Generator():
                     joint_feature[bz, :, joint] = feature[bz, :, hm_pred[bz, joint, 1], hm_pred[bz, joint, 0]]
             joint_features.append(joint_feature)
         return joint_features
-    def normalize_only(self,dts,pt1,pt2,flip=False):
-        num_joints = dts.shape[1]
 
+    def normalize_only(self,dts,pt1,pt2,flip=False):
         dts[:,:,:2] = dts[:,:,:2] - pt1.numpy()[:,np.newaxis,:]
-        compare = dts.copy()
         wh = pt2 - pt1
         dts[:,:,:2] = self.normalize_screen_coordinates_bz(dts[:,:,:2], wh.float().numpy())
         if flip:
@@ -94,48 +92,27 @@ class Pose_Generator():
         return dts
 
     def inverse_normalize_only(self,dts,pt1,pt2,flip=False):
-        num_joints = dts.shape[1]
-
         wh = pt2 - pt1
-        cp = dts.copy()
+
         if flip:
             dts[:,:,0] *= -1
         dts[:,:,:2] = self.inverse_normalize_bz(dts[:,:,:2],wh.float().numpy())
         dts[:,:,:2] = dts[:,:,:2] + pt1.numpy()[:,np.newaxis,:]
-
     
     def inverse_normalize_edges(self,edges,pt1,pt2,flip=False):
         wh = (pt2 - pt1).numpy()
         edges[:,:,:2] = edges[:,:,:2] * wh[:,np.newaxis,:] / 2
-        # for bz in range(edges.shape[0]):
-        #     x0,y0 = pt1[bz].numpy().tolist()
-        #     x1,y1 = pt2[bz].numpy().tolist()
-        #     w,h = x1-x0,y1-y0
-        #     edges[bz,:,0] *= (float(w)/2)
-        #     edges[bz,:,1] *= (float(h)/2)
+
         if flip:
             edges[:,:,0] *= -1
-        
-
 
     def normalize(self,dts,gts,pt1,pt2):
 
-        num_joints = gts.shape[1]
-
-        dts[:, :, 0] = dts[:, :, 0] - pt1[:, 0].unsqueeze(-1).repeat(1, num_joints).numpy()
-        dts[:, :, 1] = dts[:, :, 1] - pt1[:, 1].unsqueeze(-1).repeat(1, num_joints).numpy()
-
-        gts[:, :, 0] = gts[:, :, 0] - pt1[:, 0].unsqueeze(-1).repeat(1, num_joints).numpy()
-        gts[:, :, 1] = gts[:, :, 1] - pt1[:, 1].unsqueeze(-1).repeat(1, num_joints).numpy()
-
-
-        for bz in range(dts.shape[0]):
-            x0,y0 = pt1[bz].numpy().tolist()
-            x1,y1 = pt2[bz].numpy().tolist()
-            w,h = x1-x0,y1-y0
-            dts[bz,:,:2] = self.normalize_screen_coordinates(dts[bz,:,:2],w,h)
-            gts[bz,:,:2] = self.normalize_screen_coordinates(gts[bz,:,:2],w,h)
-
+        dts[:,:,:2] = dts[:,:,:2] - pt1.numpy()[:,np.newaxis,:]
+        gts[:,:,:2] = gts[:,:,:2] - pt1.numpy()[:,np.newaxis,:]
+        wh = pt2 - pt1
+        dts[:,:,:2] = self.normalize_screen_coordinates_bz(dts[:,:,:2], wh.float().numpy())
+        gts[:,:,:2] = self.normalize_screen_coordinates_bz(gts[:,:,:2], wh.float().numpy())
 
     def normalize_screen_coordinates_bz(self,X,wh):
         assert X.shape[-1] == 2
@@ -143,17 +120,6 @@ class Pose_Generator():
         #Normalize
         X = X / wh[:,np.newaxis,:] - 0.5
         return X*2
-
-    def inverse_normalize(self,Y, w, h, flip=False):
-        assert Y.shape[-1] == 2
-
-        Y/=2.
-        Y+=0.5
-        Y[:,0] = Y[:,0]*float(w)
-        Y[:,1] = Y[:,1]*float(h)
-        if flip:
-            Y[:,0] = w - Y[:,0]
-        return Y
 
     def inverse_normalize_bz(self,Y, wh):
         assert Y.shape[-1] == 2
@@ -163,11 +129,11 @@ class Pose_Generator():
         Y = Y * wh[:,np.newaxis,:]
         return Y
     
-    def hm_normalize(self,x,h,w):
-        x[:,:,0] /=w
-        x[:,:,1] /=h
-        x-=0.5
-        x*=2
+    # def hm_normalize(self,x,h,w):
+    #     x[:,:,0] /=w
+    #     x[:,:,1] /=h
+    #     x-=0.5
+    #     x*=2
     def _build_generator(self,model):
         pose_dataset = Mscoco()
 
