@@ -2,14 +2,16 @@ from ..registry import PIPELINES
 import torch
 import numpy as np
 import cv2
+import random
 from engineer.utils.tensor_np import to_torch,torch_to_im,im_to_torch
 from engineer.utils.metric import get_3rd_point
 @PIPELINES.register_module
 class crop_large(object):
-    def __init__(self,RGB,inputResH,inputResW):
+    def __init__(self,RGB,inputResH,inputResW,train_flip):
         super(crop_large,self).__init__()
         self.RGB = RGB
         self.resH,self.resW = inputResH, inputResW
+        self.is_flip = train_flip
     def __call__(self, results):
         '''
 
@@ -25,13 +27,17 @@ class crop_large(object):
         inps = results['inps']
         pt1 = results['pt1']
         pt2 = results['pt2']
+        if train_flip:
+            flips = results['flips']
+        else:
+            flips = None
         if boxes is None or boxes.nelement() == 0:
             results['inps'] = None
             results['pt1'] =None
             results['pt2'] = None
         else:
             inp = self.im_to_torch(cv2.cvtColor(orig_img, cv2.COLOR_BGR2RGB))
-            inps, pt1, pt2 = self._crop_from_dets_train_single(inp, boxes, inps, pt1, pt2)
+            inps, pt1, pt2 = self._crop_from_dets_train_single(inp, boxes, inps, pt1, pt2, flips)
             results['inps'] = inps
             results['pt1'] = pt1
             results['pt2'] = pt2
@@ -44,7 +50,7 @@ class crop_large(object):
             img /= 255
         return img
 
-    def _crop_from_dets_train_single(self,img, boxes, inps, pt1, pt2):
+    def _crop_from_dets_train_single(self,img, boxes, inps, pt1, pt2, flips):
         '''
         Crop human from origin image according to Dectecion Results
         '''
@@ -70,9 +76,13 @@ class crop_large(object):
                 print('===')
             pt1[i] = upLeft
             pt2[i] = bottomRight
+            if self.is_flip and random.random() <= 0.5:
+                assert flips is not None
+                flips[i] = -1.0
+                inps[i] = inps[i].flip(-1)
         return inps, pt1, pt2
 
-    def cropBox(self,img, ul, br):
+    def cropBox(self,img, ul, br, is_flip):
         ul = ul.int()
         br = (br - 1).int()
         # br = br.int()

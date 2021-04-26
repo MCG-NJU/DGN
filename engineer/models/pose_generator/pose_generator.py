@@ -106,13 +106,15 @@ class Pose_Generator():
         if flip:
             edges[:,:,0] *= -1
 
-    def normalize(self,dts,gts,pt1,pt2):
+    def normalize(self,dts,gts,pt1,pt2,flip_flag):
 
         dts[:,:,:2] = dts[:,:,:2] - pt1.numpy()[:,np.newaxis,:]
         gts[:,:,:2] = gts[:,:,:2] - pt1.numpy()[:,np.newaxis,:]
         wh = pt2 - pt1
         dts[:,:,:2] = self.normalize_screen_coordinates_bz(dts[:,:,:2], wh.float().numpy())
         gts[:,:,:2] = self.normalize_screen_coordinates_bz(gts[:,:,:2], wh.float().numpy())
+        dts[:,:,0] *= flip_flag
+        gts[:,:,0] *= flip_flag
 
     def normalize_screen_coordinates_bz(self,X,wh):
         assert X.shape[-1] == 2

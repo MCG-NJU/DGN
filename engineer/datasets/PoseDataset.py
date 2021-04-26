@@ -58,9 +58,11 @@ class PoseDataset(Dataset):
         inps = torch.zeros(yolos.size(0), 3, opt.inputResH, opt.inputResW)
         pt1 = torch.zeros(yolos.size(0), 2)
         pt2 = torch.zeros(yolos.size(0), 2)
+        flips = torch.ones(yolos.size(0), 1, dtype=torch.float)
         assert self.pipeline is not None
 
-        result = dict(orig_img = orig_img[0], im_name=img_name, boxes=yolos,scores=scores, inps=inps, pt1=pt1, pt2=pt2)
+        result = dict(orig_img = orig_img[0], im_name=img_name, boxes=yolos,scores=scores, 
+            inps=inps, pt1=pt1, pt2=pt2, flips=flips)
         result = self.pipeline(result)
         result['gts'] = gts
         result['dts'] = dts
@@ -143,6 +145,7 @@ class PoseDatatest(Dataset):
         inps = torch.zeros(yolos.size(0), 3, opt.inputResH, opt.inputResW)
         pt1 = torch.zeros(yolos.size(0), 2)
         pt2 = torch.zeros(yolos.size(0), 2)
+        
         assert self.pipeline is not None
         result = dict(orig_img = orig_img[0], im_name=img_name, boxes=yolos,scores=scores, inps=inps, pt1=pt1, pt2=pt2)
         result = self.pipeline(result)

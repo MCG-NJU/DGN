@@ -21,11 +21,13 @@ pose_generator=dict(
 )
 dataset_type = 'CrowdPose'
 train_pipeline = [
-    dict(type='crop_large',RGB=[-0.406,-0.457,-0.480],inputResH = 320,inputResW = 256),
+    dict(type='crop_large',RGB=[-0.406,-0.457,-0.480],inputResH = 320,inputResW = 256,
+        train_flip=True),
 ]
 
 val_pipeline = [
-    dict(type='crop_large',RGB=[-0.406,-0.457,-0.480],inputResH = 320,inputResW = 256),
+    dict(type='crop_large',RGB=[-0.406,-0.457,-0.480],inputResH = 320,inputResW = 256,
+        train_flip=False),
 ]
 data = dict(
     train=dict(

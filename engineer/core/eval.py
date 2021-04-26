@@ -245,8 +245,7 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
         # flip test
         if flip_test:
             assert inps.dim() >=3
-            dims = inps.dim -1
-            inps_flipped = inps.flip((dims,)) # flip is easy, at least not as hard as hrnet showed.
+            inps_flipped = inps.flip(-1) # flip is easy, at least not as hard as hrnet showed.
             dts_flipped, ret_features_flipped, heatmaps_flipped = alpha_pose_generator(inps_flipped,
                 boxes,pt1,pt2,gts,dts,flip_test)
             dts_flipped = dts_flipped.cuda()
