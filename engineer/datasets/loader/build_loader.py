@@ -14,6 +14,7 @@ def train_loader_collate_fn(batches):
     pt2_list =[]
     gts_list =[]
     dts_list = []
+    flips_list = []
     for i in range(len(batches)):
         result = batches[i]
         inps = result['inps']
@@ -25,6 +26,7 @@ def train_loader_collate_fn(batches):
         pt2 = result['pt2']
         gts = result['gts']
         dts = result['dts']
+        flips = result['flips']
 
         inps_list.append(inps)
         # orig_img_list.append(orig_img)
@@ -35,13 +37,19 @@ def train_loader_collate_fn(batches):
         pt2_list.append(pt2)
         gts_list.append(gts)
         dts_list.append(dts)
+        if flips is not None:
+            flips_list.append(flips)
     inps = torch.cat(inps_list,dim=0)
     boxes = torch.cat(boxes_list,dim=0)
     scores = torch.cat(scores_list,dim=0)
     pt1 = torch.cat(pt1_list,dim=0)
     pt2 = torch.cat(pt2_list,dim=0)
+    if len(flips_list) > 0:
+        flips = torch.cat(flips_list,dim=0)
+    else:
+        flips = None
 
-    return inps,img_name_list,boxes,scores,pt1,pt2,gts_list,dts_list
+    return inps,img_name_list,boxes,scores,pt1,pt2,gts_list,dts_list,flips
 
 # One method to use in eval progress
 def test_loader_collate_fn(batches):

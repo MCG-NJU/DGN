@@ -26,7 +26,7 @@ class Pose_Generator():
         self.model.eval()
         if device =="cuda":
             self.model.cuda()
-    def __call__(self,inps, boxes, pt1, pt2,gts_list,dts_list,flip_test=False):
+    def __call__(self,inps, boxes, pt1, pt2,gts_list,dts_list,flip_test=False,flips=None):
         if boxes is None or boxes.nelement() == 0:
             return None
         inps = inps.cuda()
@@ -44,6 +44,7 @@ class Pose_Generator():
             dts = torch.from_numpy(dts_epoch).float()
             return dts,ret_features,hm
         else:
+            assert not flip_test, "flip_test should be false"
             for gts,dts in zip(gts_list,dts_list):
                 gts = np.asarray(gts)
                 gts_epoch.append(gts)
@@ -57,7 +58,7 @@ class Pose_Generator():
             # hm_1_4 = transformBox_batch(pre_keypoints, pt1, pt2, self.inputResH, self.inputResW, self.outputResH,
             #                             self.outputResW)
             # self.hm_normalize(hm_1_4,h_4,w_4)
-            self.normalize(dts_epoch,gts_epoch,pt1,pt2)
+            self.normalize(dts_epoch,gts_epoch,pt1,pt2,flips)
             dts = torch.from_numpy(dts_epoch).float()
             gts = torch.from_numpy(gts_epoch).float()
 
@@ -106,15 +107,16 @@ class Pose_Generator():
         if flip:
             edges[:,:,0] *= -1
 
-    def normalize(self,dts,gts,pt1,pt2,flip_flag):
+    def normalize(self,dts,gts,pt1,pt2,flips):
 
         dts[:,:,:2] = dts[:,:,:2] - pt1.numpy()[:,np.newaxis,:]
         gts[:,:,:2] = gts[:,:,:2] - pt1.numpy()[:,np.newaxis,:]
         wh = pt2 - pt1
         dts[:,:,:2] = self.normalize_screen_coordinates_bz(dts[:,:,:2], wh.float().numpy())
         gts[:,:,:2] = self.normalize_screen_coordinates_bz(gts[:,:,:2], wh.float().numpy())
-        dts[:,:,0] *= flip_flag
-        gts[:,:,0] *= flip_flag
+        if flips is not None:
+            dts[:,:,0] *= flips.numpy()
+            gts[:,:,0] *= flips.numpy()
 
     def normalize_screen_coordinates_bz(self,X,wh):
         assert X.shape[-1] == 2

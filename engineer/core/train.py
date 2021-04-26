@@ -47,9 +47,11 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
         end = time.time()
         bar = Bar('Train', max=int(len(train_loader) // cfg.PRINT_FREQ)+1)
         for _,batches in enumerate(train_loader):
-            inps, orig_img_list, img_name_list, boxes, scores, pt1, pt2, gts_list, dts_list = batches
+            inps, img_name_list, boxes, scores, pt1, pt2, gts_list, dts_list, flips = batches
+            print(f"flips.shape from batches inputs:{flips.shape}")
+
             if pose_generator is not None:
-                dts,gt_2d,ret_features,heatmaps = pose_generator(inps,orig_img_list,img_name_list,boxes,scores,pt1,pt2,gts_list,dts_list)
+                dts,gt_2d,ret_features,heatmaps = pose_generator(inps,boxes,pt1,pt2,gts_list,dts_list,False,flips)
                 dts = dts.cuda()
                 gt_2d = gt_2d.cuda()
                 # hm_4 = hm_4.cuda()
@@ -59,7 +61,7 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
                 out_2d, edge_2d, edge_gt = model_pos(dts, heatmaps, ret_features, gt=gt_2d)
                 # heat_map_regress = heat_map_regress.view(-1, 12, 2)
             else:
-                out_2d, heat_map_regress, inter_gral_x, gt_2d, bz = model_pos(inps,orig_img_list,img_name_list,boxes,scores,pt1,pt2,gts_list,dts_list)
+                out_2d, heat_map_regress, inter_gral_x, gt_2d, bz = model_pos(inps,boxes,pt1,pt2,gts_list,dts_list,False,flips)
                 heat_map_regress = heat_map_regress.view(-1, 12, 2)
                 data_time.update(time.time() - end)
             lr = optim.get_epoch_lr(epoch + float(_) / len(train_loader), cfg)
@@ -118,8 +120,9 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
             # add writer dict
             writer = writer_dict['writer']
             train_step = writer_dict['train_step']
-            writer.add_scalar('train/total_loss', epoch_loss_2d_pos.avg, train_step)
-            writer.add_scalar('train/score_loss', epoch_loss_score.avg, train_step)
+            writer.add_scalar('train/total_loss', epoch_loss.avg, train_step)
+            writer.add_scalar('train/pose_loss', epoch_loss_2d_pos.avg, train_step)
+            writer.add_scalar('train/edge_loss', epoch_loss_edge.avg, train_step)
             writer_dict['train_step'] = train_step + 1
 
             if _ % cfg.PRINT_FREQ == 0:

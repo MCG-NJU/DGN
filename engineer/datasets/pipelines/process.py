@@ -27,7 +27,7 @@ class crop_large(object):
         inps = results['inps']
         pt1 = results['pt1']
         pt2 = results['pt2']
-        if train_flip:
+        if self.is_flip:
             flips = results['flips']
         else:
             flips = None
@@ -37,10 +37,14 @@ class crop_large(object):
             results['pt2'] = None
         else:
             inp = self.im_to_torch(cv2.cvtColor(orig_img, cv2.COLOR_BGR2RGB))
-            inps, pt1, pt2 = self._crop_from_dets_train_single(inp, boxes, inps, pt1, pt2, flips)
+            inps, pt1, pt2, flips = self._crop_from_dets_train_single(inp, boxes, inps, pt1, pt2, flips)
             results['inps'] = inps
             results['pt1'] = pt1
             results['pt2'] = pt2
+            if self.is_flip:
+                results['flips'] = flips
+            else:
+                results['flips'] = None
         return results
 
     def im_to_torch(self,img):
@@ -80,9 +84,9 @@ class crop_large(object):
                 assert flips is not None
                 flips[i] = -1.0
                 inps[i] = inps[i].flip(-1)
-        return inps, pt1, pt2
+        return inps, pt1, pt2, flips
 
-    def cropBox(self,img, ul, br, is_flip):
+    def cropBox(self,img, ul, br):
         ul = ul.int()
         br = (br - 1).int()
         # br = br.int()
