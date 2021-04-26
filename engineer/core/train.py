@@ -33,7 +33,11 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
 
     
     writer_map = open(os.path.join(cfg.checkpoints,"mAP.txt"),'w')
+    myend = time.time()
+    mytime = AverageMeter()
     for epoch in range(begin_epoch, cfg.nEpochs):
+        print(f"Training at branch:{cfg.log_path}")
+        print(f"With learning rate policy:{cfg.lr_policy}")
         if epoch > 0:
             print("=> start epoch {}, count from epoch 0".format(epoch))
         #average
@@ -48,7 +52,6 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
         bar = Bar('Train', max=int(len(train_loader) // cfg.PRINT_FREQ)+1)
         for _,batches in enumerate(train_loader):
             inps, img_name_list, boxes, scores, pt1, pt2, gts_list, dts_list, flips = batches
-            print(f"flips.shape from batches inputs:{flips.shape}")
 
             if pose_generator is not None:
                 dts,gt_2d,ret_features,heatmaps = pose_generator(inps,boxes,pt1,pt2,gts_list,dts_list,False,flips)
@@ -163,4 +166,6 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
         if os.path.exists(softlink):
             os.remove(softlink)
         os.symlink(os.path.join(root, save_path), softlink)
-        
+        print(f"Time has elapsed {time_format_convert(mytime.sum)}")
+        print(f"It still need {time_format_convert(mytime.avg*(cfg.nEpochs-epoch-1))}")
+        print("****************************************************************************")

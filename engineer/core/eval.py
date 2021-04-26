@@ -263,7 +263,8 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
             alpha_pose_generator.inverse_normalize_only(dts, pt1, pt2)
             alpha_pose_generator.inverse_normalize_edges(edges_out,pt1,pt2)
             # alpha_pose_generator.inverse_normalize_only(inter_gral_x[...,:2], pt1, pt2)
-
+            
+            out_2d_ori = out_2d.copy()
             if flip_test:
                 out_2d_flipped, edges_out_flipped = model_pose(dts_flipped, heatmaps_flipped, ret_features_flipped)
                 out_2d_flipped = out_2d_flipped[2].cpu().detach().numpy()
@@ -274,9 +275,9 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
                 out_2d = (out_2d + out_2d_flipped) / 2.0
                 edges_out = (edges_out + edges_out_flipped) / 2.0
 
-            dts_003 = dts.copy()
-            adj_joints = np.concatenate([out_2d[:,...,:2],scores],axis=-1)
-            dts_003[labels<0.2] = adj_joints[labels<0.2]
+            # dts_003 = dts.copy()
+            # adj_joints = np.concatenate([out_2d[:,...,:2],scores],axis=-1)
+            # dts_003[labels<0.2] = adj_joints[labels<0.2]
             for bz in range(dts_003.shape[0]):
                 index = item[bz]
                 name = img_name[bz]
@@ -284,7 +285,7 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
                 # if ind is not None:
                 #     id2keypoints[name][ind] = dts_003[bz,...].reshape(-1).tolist()
                 json_file_ori[index]['keypoints'] = out_2d[bz,...].reshape(-1).tolist()
-                json_file_0_03[index]['keypoints'] = dts_003[bz,...].reshape(-1).tolist()
+                json_file_0_03[index]['keypoints'] = out_2d_ori[bz,...].reshape(-1).tolist()
                 json_file_ori[index]['edges'] = edges_out[bz,...].reshape(-1).tolist()
     # new_best_match =[]
     # for key,keypoints in id2keypoints.items():
@@ -300,7 +301,9 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
 
 
     #test results on best_best_match method in here and only PIN method
+    print("Results without flip:\n")
     reference_map,_,_ = eval_results(json_file_0_03,target_json)
 
+    print("Results combined with flip:\n")
     ap003,_,_ = eval_results(json_file_ori,target_json)
     return ap003,reference_map,json_file_ori
