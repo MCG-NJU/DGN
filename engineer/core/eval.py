@@ -278,7 +278,7 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
             # dts_003 = dts.copy()
             # adj_joints = np.concatenate([out_2d[:,...,:2],scores],axis=-1)
             # dts_003[labels<0.2] = adj_joints[labels<0.2]
-            for bz in range(dts_003.shape[0]):
+            for bz in range(out_2d.shape[0]):
                 index = item[bz]
                 name = img_name[bz]
                 # ind = best_pose_match[bz]

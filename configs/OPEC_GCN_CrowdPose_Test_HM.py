@@ -60,7 +60,9 @@ optim_para=dict(
 )
 
 # log path
-log_path = "CrowdPose_HM_dGCN_NetResidualAggregate_noScureInput_bothScoreSupervised/"
+log_path = "CrowdPose_HM_dGCN_NetResidualAggregate_noScureInput_bothScoreSupervised_withFlip_35epochs_MultiheadNL"
+# log_path = "CrowdPose_HM_dGCN_NetResidualAggregate_noScureInput_bothScoreSupervised_withFlip_60epochs"
+# log_path = "CrowdPose_HM_dGCN_NetResidualAggregate_noScureInput_bothScoreSupervised"
 # print frequent
 PRINT_FREQ = 100
 
@@ -81,7 +83,8 @@ lr_policy="cosine"
 lr_warm_up = 1e-5
 warm_epoch=1
 LR=1e-3 * len(GPUS)
-nEpochs=45
+nEpochs=35
+
 
 AUTO_RESUME = True
 

@@ -186,27 +186,31 @@ class SemGCN_Heatmaps(nn.Module):
 
     @property
     def adj_matrix(self):
+        m = (self.adj == 0)
+        self.adj[m] = 0.001
         return self.adj
 
 
     @property
     def edge_adj_matrix(self):
+        m = (self.edge_adj == 0)
+        self.edge_adj[m] = 0.001
         return self.edge_adj
 
 
-    @adj_matrix.setter
-    def adj_matrix(self,adj_matrix):
-        m = (adj_matrix == 0)
-        assert len(m) == 108, f"len(m) is {len(m)}"
-        adj_matrix[m] = 0.001
-        self.adj = adj_matrix
+    # @adj_matrix.setter
+    # def adj_matrix(self,adj_matrix):
+    #     m = (adj_matrix == 0)
+    #     assert len(m) == 108, f"len(m) is {len(m)}"
+    #     adj_matrix[m] = 0.001
+    #     self.adj = adj_matrix
 
 
-    @edge_adj_matrix.setter
-    def edge_adj_matrix(self,edge_adj_matrix):
-        m = (edge_adj_matrix==0)
-        edge_adj_matrix[m] = 0.001
-        self.edge_adj = edge_adj_matrix
+    # @edge_adj_matrix.setter
+    # def edge_adj_matrix(self,edge_adj_matrix):
+    #     m = (edge_adj_matrix==0)
+    #     edge_adj_matrix[m] = 0.001
+    #     self.edge_adj = edge_adj_matrix
 
 
     def _build_adj_mx_from_edges(self,num_joints,edge):

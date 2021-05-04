@@ -58,7 +58,8 @@ class _ResGraphConv_Attention(nn.Module):
         self.gconv2 = _GraphConv_no_bn(adj, hid_dim//2, output_dim, p_dropout)
         self.bn = nn.BatchNorm1d(output_dim)
         self.relu = nn.ReLU()
-        self.attention = Node_Attention(output_dim)
+        # self.attention = Node_Attention(output_dim)
+        self.MHNL1D = nn.TransformerEncoderLayer(output_dim, nhead=8)
 
     def forward(self, x,joint_features):
         if joint_features is None:
@@ -73,8 +74,11 @@ class _ResGraphConv_Attention(nn.Module):
         out = self.bn(residual.transpose(1,2).contiguous() + out)
         out = self.relu(out)
 
-        out = self.attention(out).transpose(1,2).contiguous()
-        return out
+        # out = self.attention(out).transpose(1,2).contiguous()
+        out = out.transpose(1,2).contiguous()
+        out = out.transpose(0,1).contiguous()
+        out = self.MHNL1D(out)
+        return out.transpose(0,1).contiguous()
 
 
 class Node_Attention(nn.Module):
@@ -138,9 +142,6 @@ class SemGraphConv(nn.Module):
         # adj[self.m] = self.e
         # adj = F.softmax(adj, dim=1)
         adj = self.adj
-
-
-
 
         M = torch.eye(adj.size(0), dtype=torch.float).to(input.device)
         output = torch.matmul(adj * M, h0) + torch.matmul(adj * (1 - M), h1)

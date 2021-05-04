@@ -42,7 +42,7 @@ def lr_func_cosine(cfg, cur_epoch):
     return max(
         cfg.LR
         * (math.cos(math.pi * cur_epoch / cfg.nEpochs) + 1.0)
-        * 0.5,1e-5
+        * 0.5, 1e-5
     )
 
 
