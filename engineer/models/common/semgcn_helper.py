@@ -81,26 +81,26 @@ class _ResGraphConv_Attention(nn.Module):
         return out.transpose(0,1).contiguous()
 
 
-class Node_Attention(nn.Module):
-    def __init__(self,channels):
-        '''
-        likely SElayer
-        '''
-        super(Node_Attention,self).__init__()
-        self.avg = nn.AdaptiveAvgPool1d(1)
-        self.squeeze = nn.Sequential(
-            nn.Linear(channels,channels//4),
-            nn.ReLU(),
-            nn.Linear(channels//4,12),
-            nn.Sigmoid()
-        )
-    def forward(self, x):
-        out = self.avg(x).squeeze(2)
-        out = self.squeeze(out)
-        out = out[:,None,:]
-        out = out
-        out = (x+x*out)
-        return out
+# class Node_Attention(nn.Module):
+#     def __init__(self,channels):
+#         '''
+#         likely SElayer
+#         '''
+#         super(Node_Attention,self).__init__()
+#         self.avg = nn.AdaptiveAvgPool1d(1)
+#         self.squeeze = nn.Sequential(
+#             nn.Linear(channels,channels//4),
+#             nn.ReLU(),
+#             nn.Linear(channels//4,12),
+#             nn.Sigmoid()
+#         )
+#     def forward(self, x):
+#         out = self.avg(x).squeeze(2)
+#         out = self.squeeze(out)
+#         out = out[:,None,:]
+#         out = out
+#         out = (x+x*out)
+#         return out
 
 class SemGraphConv(nn.Module):
     """

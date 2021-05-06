@@ -36,8 +36,8 @@ class SemGCN_Heatmaps(nn.Module):
 
         # ev, ve = self._build_ev_ve_matrix()
         # ev, ve = torch.tensor(ev, dtype=torch.float), torch.tensor(ve, dtype=torch.float)
-        self.register_buffer('ev_shift', me) # end
-        self.register_buffer('ve_shift', ms) # start
+        # self.register_buffer('ev_shift', me) # end
+        # self.register_buffer('ve_shift', ms) # start
 
         self.adj = self._build_adj_mx_from_edges(num_joints, adj)
         self.edge_adj = self._build_adj_mx_from_edges(num_edges, edge_adj)
