@@ -186,15 +186,15 @@ class SemGCN_Heatmaps(nn.Module):
 
     @property
     def adj_matrix(self):
-        m = (self.adj == 0)
-        self.adj[m] = 0.001
+        # m = (self.adj == 0)
+        # self.adj[m] = 0.001
         return self.adj
 
 
     @property
     def edge_adj_matrix(self):
-        m = (self.edge_adj == 0)
-        self.edge_adj[m] = 0.001
+        # m = (self.edge_adj == 0)
+        # self.edge_adj[m] = 0.001
         return self.edge_adj
 
 

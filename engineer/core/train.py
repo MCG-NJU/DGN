@@ -159,13 +159,13 @@ def train_epochs(model_pos,optimizer,cfg,train_loader,pose_generator,criterion1,
             'train_step': writer_dict['train_step'],
             'valid_step': writer_dict['valid_step']
         }
-        save_path = os.path.join(cfg.checkpoints,"{}.pth".format(epoch))
+        save_path = os.path.join(cfg.checkpoints,"checkpoint.pth".format(epoch))
         torch.save(save_dict,save_path)
-        root = '/home/tujun/projects/OPEC-Net72'
-        softlink = os.path.join(cfg.checkpoints,'checkpoint.pth')
-        if os.path.exists(softlink):
-            os.remove(softlink)
-        os.symlink(os.path.join(root, save_path), softlink)
+        # root = '/home/tujun/projects/OPEC-Net72'
+        # softlink = os.path.join(cfg.checkpoints,'checkpoint.pth')
+        # if os.path.exists(softlink):
+        #     os.remove(softlink)
+        # os.symlink(os.path.join(root, save_path), softlink)
         mytime.update(time.time()-myend)
         myend = time.time()
         print(f"In average, it takes {time_format_convert(mytime.avg)} per epoch.")
