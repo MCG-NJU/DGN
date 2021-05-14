@@ -257,7 +257,7 @@ class JointAggregate(nn.Module):
         op1 = torch.cat([ev_feats[:,:,0],ev_feats[:,:,1],ev_feats[:,:,5]],dim=1).unsqueeze_(dim=-2)
         op1 = self.node_res1(op1)
         
-        op21 = torch.cat([ve_feats[:,:,0],ev_feats[:,:,3],ev_feats[:,:,7]],dim=1)
+        op21 = torch.cat([ve_feats[:,:,0],ev_feats[:,:,3],ev_feats[:,:,6]],dim=1)
         op22 = torch.cat([ve_feats[:,:,5],ev_feats[:,:,7],ev_feats[:,:,8]],dim=1)
         op2 = torch.stack([op21,op22],dim=2)
         op2 = self.node_res2(op2)
