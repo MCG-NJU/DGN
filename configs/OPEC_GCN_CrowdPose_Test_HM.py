@@ -60,7 +60,7 @@ optim_para=dict(
 )
 
 # log path
-log_path = "CrowdPose_HM_TrueDGCN_NetResidualAggregate_noScureInput_bothScoreSupervised_withFlip_60epochs_bugfixed"
+log_path = "CrowdPose_HM_TrueDGCN_NetResidualAggregate_noScureInput_bothScoreSupervised_withFlip_80epochs_bugfixed"
 # log_path = "CrowdPose_HM_dGCN_NetResidualAggregate_noScureInput_bothScoreSupervised_withFlip_60epochs"
 # log_path = "CrowdPose_HM_dGCN_NetResidualAggregate_noScureInput_bothScoreSupervised"
 # print frequent
@@ -83,7 +83,7 @@ lr_policy="cosine"
 lr_warm_up = 1e-5
 warm_epoch=1
 LR=1e-3 * len(GPUS)
-nEpochs=60
+nEpochs=80
 
 
 AUTO_RESUME = True
