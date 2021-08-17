@@ -60,7 +60,7 @@ optim_para=dict(
 )
 
 # log path
-log_path = "CrowdPose_ADGN_withFlip_60epochs_onlyJointConfidenceScoreIn_normalizedHeatmaps_batch32"
+log_path = "CrowdPose_ADGN_withFlip_60epochs_bothConfidenceScoreIn_normalizedHeatmaps_batch32"
 # log_path = "CrowdPose_HM_dGCN_NetResidualAggregate_noScureInput_bothScoreSupervised_withFlip_60epochs"
 # log_path = "CrowdPose_HM_dGCN_NetResidualAggregate_noScureInput_bothScoreSupervised"
 # print frequent
