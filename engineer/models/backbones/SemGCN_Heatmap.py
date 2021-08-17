@@ -45,7 +45,7 @@ class SemGCN_Heatmaps(nn.Module):
         adj = self.adj_matrix
         edge_adj = self.edge_adj_matrix
 
-        self.gconv_input = _GraphConv(adj, coords_dim[1], hid_dim[0], p_dropout=p_dropout)
+        self.gconv_input = _GraphConv(adj, coords_dim[0], hid_dim[0], p_dropout=p_dropout)
         self.econv_input = _GraphConv(edge_adj, coords_dim[1], hid_dim[0], p_dropout=p_dropout)
         self.aggregate_edges = EdgeAggregate(hid_dim[0], hid_dim[0])
         self.aggregate_joints = JointAggregate(hid_dim[0], hid_dim[0], hid_dim[0], self.num_joints)
@@ -271,7 +271,7 @@ class SemGCN_Heatmaps(nn.Module):
         # y_score = self.avg_matrix.matmul(x[:,:,2].unsqueeze(dim=2))
         # y = torch.cat([y_coords, y_score], dim=2)
         
-        gout = self.gconv_input(x[:,...,:2])
+        gout = self.gconv_input(x)
         eout = self.econv_input(y_coords)
 
         # aggregation
