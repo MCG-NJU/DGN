@@ -8,6 +8,8 @@ import torch
 import copy
 crowd_pose_dir = "../crowdpose/images"
 from utils.metrics import eval_results
+from utils.structure import AverageMeter, time_format_convert
+import time
 
 sigmas = np.array(
     [.79, .79, .72, .72, .62, .62, 1.07, 1.07, .87, .87, .89, .89, .79, .79]) / 10.0
@@ -220,9 +222,15 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
         json_file_0_03 = copy.deepcopy(json_file_ori)
 
     cnt = 1
+    end = time.time()
+    pose_time = AverageMeter()
+    adgn_time = AverageMeter()
+    total_time = AverageMeter()
     for batches in tqdm(test_dataloader):
         cnt+=1
         inps,img_name,boxes,scores,pt1,pt2,gts,dts,item = batches
+
+        bz = inps.shape[0]
 
         # best_pose_match =[]
         # for name,box in zip(img_name,boxes):
@@ -238,21 +246,26 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
         #         best_pose_match.append(ind)
         #     else:
         #         best_pose_match.append(None)
-
+        pose_start = time.time()
         dts_norm, ret_features, heatmaps = alpha_pose_generator(inps, boxes, pt1, pt2, gts, dts)
+        pose_time.update(time.time()-pose_start, bz=bz)
         
 
         # flip test
         if flip_test:
             assert inps.dim() >=3
             inps_flipped = inps.flip(-1) # flip is easy, at least not as hard as hrnet showed.
+            pose_start = time.time()
             dts_flipped, ret_features_flipped, heatmaps_flipped = alpha_pose_generator(inps_flipped,
                 boxes,pt1,pt2,gts,dts,flip_test)
+            pose_time.update(time.time()-pose_start)
             dts_flipped = dts_flipped.cuda()
         dts = dts_norm.cuda()
 
         with torch.no_grad():
+            adgn_start = time.time()
             out_2d, edges_out = model_pose(dts,heatmaps,ret_features)
+            adgn_time.update(time.time()-adgn_start,bz=bz)
             out_2d = out_2d[2].cpu().detach().numpy()
             edges_out = edges_out.cpu().detach().numpy()
             labels = dts[:,...,2:].repeat(1,1,3).cpu().detach().numpy()
@@ -266,7 +279,9 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
             
             out_2d_ori = out_2d.copy()
             if flip_test:
+                adgn_start = time.time()
                 out_2d_flipped, edges_out_flipped = model_pose(dts_flipped, heatmaps_flipped, ret_features_flipped)
+                adgn_time.update(time.time()-adgn_start)
                 out_2d_flipped = out_2d_flipped[2].cpu().detach().numpy()
                 edges_out_flipped = edges_out_flipped.cpu().detach().numpy()
                 alpha_pose_generator.inverse_normalize_only(out_2d_flipped,pt1,pt2,flip=flip_test)
@@ -278,15 +293,18 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
             # dts_003 = dts.copy()
             # adj_joints = np.concatenate([out_2d[:,...,:2],scores],axis=-1)
             # dts_003[labels<0.2] = adj_joints[labels<0.2]
-            for bz in range(out_2d.shape[0]):
-                index = item[bz]
-                name = img_name[bz]
+            for bzidx in range(out_2d.shape[0]):
+                index = item[bzidx]
+                name = img_name[bzidx]
                 # ind = best_pose_match[bz]
                 # if ind is not None:
                 #     id2keypoints[name][ind] = dts_003[bz,...].reshape(-1).tolist()
-                json_file_ori[index]['keypoints'] = out_2d[bz,...].reshape(-1).tolist()
-                json_file_0_03[index]['keypoints'] = out_2d_ori[bz,...].reshape(-1).tolist()
-                json_file_ori[index]['edges'] = edges_out[bz,...].reshape(-1).tolist()
+                json_file_ori[index]['keypoints'] = out_2d[bzidx,...].reshape(-1).tolist()
+                json_file_0_03[index]['keypoints'] = out_2d_ori[bzidx,...].reshape(-1).tolist()
+                json_file_ori[index]['edges'] = edges_out[bzidx,...].reshape(-1).tolist()
+            
+            total_time.update(time.time()-end, bz=bz)
+            end = time.time()
     # new_best_match =[]
     # for key,keypoints in id2keypoints.items():
     #     for keypoint,box,sco,cat in zip(keypoints,id2bbox[key],id2scores[key],id2cat[key]):
@@ -306,4 +324,13 @@ def eval_map(alpha_pose_generator,model_pose,test_dataloader,pred_json,best_json
 
     print("Results combined with flip:\n")
     ap003,_,_ = eval_results(json_file_ori,target_json)
+
+    print("**************************** Time Stats *******************************************")
+    print(f"total time:{total_time.sum}")
+    print(f"total time per instance in average:{total_time.avg}")
+    print(f"pose estimator time in total:{pose_time.sum}")
+    print(f"pose estimator time per item in:{pose_time.avg}")
+    print(f"ADGN time in total:{adgn_time.sum}")
+    print(f"ADGN time per item in average:{adgn_time.avg}")
+    print("*********************************************************************************")
     return ap003,reference_map,json_file_ori

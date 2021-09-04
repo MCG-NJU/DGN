@@ -7,10 +7,10 @@ sys.path.append("./")
 from opt import opt
 from mmcv import Config
 from engineer.SPPE.src.main_fast_inference import *
-try:
-    from utils.img import transformBox_batch
-except ImportError:
-    from engineer.SPPE.src.utils.img import transformBox_batch
+# try:
+#     from utils.img import transformBox_batch
+# except ImportError:
+#     from engineer.SPPE.src.utils.img import transformBox_batch
 from torch.utils.data import DataLoader
 import torch.nn as nn
 from engineer.datasets.loader.build_loader import train_loader_collate_fn,test_loader_collate_fn
