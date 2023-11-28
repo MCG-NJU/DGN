@@ -1,5 +1,7 @@
 # Dual Graph Networks
 [Dual Graph Networks for Pose Estimation in Crowded Scenes](https://rdcu.be/dsaP3)(IJCV2023)  
+## Overall Pipeline  
+![Illustrating the architecture of the proposed DGN](/figuers/overall_pipeline.PNG)
 
 # Dependencies  
 - PyTorch(>=1.0 && <=1.13.1)  
@@ -31,7 +33,8 @@ our training log can be seen in `./log`, it is in tensorboard format. If one wan
 ```
 tensorboard --logdir CrowdPose_ADGN_withFlip_60epochs_bothConfidenceScoreIn_normalizedHeatmaps_batch32 --bind_all
 ```
-
+### Demostration
+![Demon figures of the results on CrowdPose test set](/figuers/Demo.PNG)
  
 ## Training script
  e.g.  
