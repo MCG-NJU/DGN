@@ -198,21 +198,6 @@ class SemGCN_Heatmaps(nn.Module):
         return self.edge_adj
 
 
-    # @adj_matrix.setter
-    # def adj_matrix(self,adj_matrix):
-    #     m = (adj_matrix == 0)
-    #     assert len(m) == 108, f"len(m) is {len(m)}"
-    #     adj_matrix[m] = 0.001
-    #     self.adj = adj_matrix
-
-
-    # @edge_adj_matrix.setter
-    # def edge_adj_matrix(self,edge_adj_matrix):
-    #     m = (edge_adj_matrix==0)
-    #     edge_adj_matrix[m] = 0.001
-    #     self.edge_adj = edge_adj_matrix
-
-
     def _build_adj_mx_from_edges(self,num_joints,edge):
         def adj_mx_from_edges(num_pts, edges, sparse=True):
             edges = np.array(edges, dtype=np.int32)
@@ -249,17 +234,9 @@ class SemGCN_Heatmaps(nn.Module):
 
 
     def forward(self, x, heatmaps, ret_features, gt=None):
-        # print(f"x.shape:{x.shape}, heatmaps.shape:{heatmaps.shape}")
-        # for feats in ret_features:
-        #     print(feats.shape)
-        # exit()
         results, _ = self.heat_map_generator(ret_features)
         
         joint_feats = self.extract_joints_features(results, heatmaps)
-        # print(f"len(joint_feats):{len(joint_feats)}")
-        # for i, elem in enumerate(joint_feats):
-        #     print(f"elem[{i}].shape is {[elem.shape]}")
-        # assert 1==2
 
         assert x.shape[2] == 3
         assert x.dim() == 3

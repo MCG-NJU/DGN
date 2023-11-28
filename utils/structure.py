@@ -9,7 +9,7 @@ class AverageMeter(object):
         self.sum = 0
         self.count = 0
 
-    def update(self, val, bz=0):
+    def update(self, val, bz=1):
         self.val = val
         self.sum += val
         self.count += bz
