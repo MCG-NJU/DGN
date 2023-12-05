@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Dual Graph Networks
 [IJCV 2023] [Dual Graph Networks for Pose Estimation in Crowded Scenes](https://rdcu.be/dsaP3)
 ## Overall Pipeline  
@@ -109,8 +108,3 @@ If you find our works useful in your reasearch, please consider citing:
 }
 ```
 
-||||||| merged common ancestors
-=======
-# DGN
-[IJCV 2023] Dual Graph Networks for Pose Estimation in Crowded Scenes
->>>>>>> 3efb09ca2ee955e3e96c1ce66cfc5479152783ed
