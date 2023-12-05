@@ -1,5 +1,5 @@
 # Dual Graph Networks
-[Dual Graph Networks for Pose Estimation in Crowded Scenes](https://rdcu.be/dsaP3)(IJCV2023)  
+[IJCV 2023] [Dual Graph Networks for Pose Estimation in Crowded Scenes](https://rdcu.be/dsaP3)
 ## Overall Pipeline  
 ![Illustrating the architecture of the proposed DGN](/figuers/overall_pipeline.PNG)
 
